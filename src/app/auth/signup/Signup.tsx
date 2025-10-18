@@ -56,31 +56,83 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="container">
-        <form onSubmit={handleSubmit} className="card" style={{ maxWidth: 520, margin: '0 auto' }}>
-          <h1 style={{ marginTop: 0, marginBottom: 6, fontSize: 22 }}>Create your account</h1>
-
-          {error && <p style={{ color: '#ff6b6b', marginBottom: 12 }}>{error}</p>}
-
-          <FormInput label="Name" type="text" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
-
-          <div style={{ marginTop: 12 }}>
-            <FormInput label="Email" type="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} status={exists === null ? null : exists ? 'ok' : 'error'} required />
+    <div className="auth-page">
+      <div className="auth-container">
+        <div className="auth-card">
+          <div className="auth-header">
+            <div className="auth-logo">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 20V10"/>
+                <path d="M12 20V4"/>
+                <path d="M6 20v-6"/>
+              </svg>
+            </div>
+            <h1 className="auth-title">Create account</h1>
+            <p className="auth-subtitle">Join RiseUP to start your journey</p>
           </div>
 
-          <div style={{ marginTop: 12 }}>
-            <PasswordInput label="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
+          <form onSubmit={handleSubmit} className="auth-form">
+            {error && (
+              <div className="auth-error">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>{error}</span>
+              </div>
+            )}
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 16 }} disabled={loading}>
-            {loading ? 'Signing up...' : 'Sign Up'}
-          </button>
+            <FormInput 
+              label="Name" 
+              type="text" 
+              placeholder="Full name" 
+              value={name} 
+              onChange={(e) => setName(e.target.value)} 
+              required 
+            />
 
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
-            <a href="/auth/login" className="link small">Already have an account? Log in</a>
-          </div>
-        </form>
+            <FormInput 
+              label="Email" 
+              type="email" 
+              placeholder="you@company.com" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              status={exists === null ? null : exists ? 'error' : 'ok'} 
+              required 
+            />
+
+            <PasswordInput 
+              label="Password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+            />
+
+            <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <span className="spinner-small"></span>
+                  Creating account...
+                </>
+              ) : (
+                'Create account'
+              )}
+            </button>
+
+            <div className="auth-links">
+              <span style={{ color: 'var(--muted)' }}>Already have an account?</span>
+              <a href="/auth/login" className="auth-link auth-link-primary">Sign in</a>
+            </div>
+          </form>
+        </div>
+
+        <footer className="auth-footer">
+          <span>© 2025 RiseUP</span>
+          <span className="auth-divider">•</span>
+          <a href="#" className="auth-footer-link">Privacy</a>
+          <span className="auth-divider">•</span>
+          <a href="#" className="auth-footer-link">Terms</a>
+        </footer>
       </div>
     </div>
   );

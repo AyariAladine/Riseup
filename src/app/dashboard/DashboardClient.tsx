@@ -29,10 +29,6 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
 
           const data = await res.json();
           setUser(data.user);
-          try {
-            sessionStorage.setItem('prefetch:user', JSON.stringify(data.user || null));
-            window.dispatchEvent(new CustomEvent('user-prefetched', { detail: data.user || null }));
-          } catch {}
           setGlobalUser(data.user || null);
         } catch {
           // Clear cookie server-side via logout endpoint and redirect
@@ -45,10 +41,6 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
       fetchUser();
     } else {
       // We have initial user; propagate to global client state immediately
-      try {
-        sessionStorage.setItem('prefetch:user', JSON.stringify(initialUser || null));
-        window.dispatchEvent(new CustomEvent('user-prefetched', { detail: initialUser || null }));
-      } catch {}
       setGlobalUser(initialUser || null);
       setLoading(false);
     }

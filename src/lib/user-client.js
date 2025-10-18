@@ -1,13 +1,13 @@
 "use client";
 import { useSyncExternalStore } from 'react';
+import { safeStorageGet, safeStorageSet, safeStorageRemove } from './safe-storage';
 
 function ensureGlobals() {
   if (typeof window === 'undefined') return;
   const w = window;
   if (!w.__EMITTER__) {
-    // Try to restore user from sessionStorage on first load
-    const cached = sessionStorage.getItem('app:user');
-    w.__USER__ = cached ? (() => { try { return JSON.parse(cached); } catch { return null; } })() : null;
+    // Try to restore user from storage on first load
+    w.__USER__ = safeStorageGet('app:user');
     w.__EMITTER__ = new EventTarget();
   }
 }
@@ -18,15 +18,11 @@ export function setUser(user) {
   const w = window;
   w.__USER__ = user;
   
-  // Persist to sessionStorage
-  try {
-    if (user) {
-      sessionStorage.setItem('app:user', JSON.stringify(user));
-    } else {
-      sessionStorage.removeItem('app:user');
-    }
-  } catch (e) {
-    console.error('Failed to persist user to sessionStorage:', e);
+  // Persist to storage
+  if (user) {
+    safeStorageSet('app:user', user);
+  } else {
+    safeStorageRemove('app:user');
   }
   
   try {

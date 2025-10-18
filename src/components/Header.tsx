@@ -29,10 +29,16 @@ export default function Header() {
     (async () => {
       try {
         const res = await fetch('/api/profile', { credentials: 'include' });
-        if (!res.ok) return;
+        if (!res.ok) {
+          // 401 is expected when not logged in, silently ignore
+          if (res.status === 401) return;
+          return;
+        }
         const data = await res.json();
         setIsOnline(Boolean(data.user?.preferences?.isOnline ?? true));
-      } catch {}
+      } catch {
+        // Silently ignore network errors
+      }
     })();
   }, [localUser]);
 
@@ -62,16 +68,36 @@ export default function Header() {
     return () => window.removeEventListener('status-updated', handler as EventListener);
   }, []);
 
-  // mobile drawer toggle: notify listeners (Sidebar)
+  // Drawer toggle: notify listeners (Sidebar)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       window.dispatchEvent(new CustomEvent('drawer-toggle', { detail: { open: drawerOpen } }));
     } catch {}
     if (typeof document !== 'undefined') {
+      // Both mobile and desktop: 'open' attribute when drawer is open
       if (drawerOpen) document.body.setAttribute('data-drawer', 'open');
       else document.body.removeAttribute('data-drawer');
     }
+  }, [drawerOpen]);
+
+  // Listen for drawer being closed from elsewhere (clicking main content, etc.)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const observer = new MutationObserver(() => {
+      const isOpen = document.body.hasAttribute('data-drawer');
+      if (isOpen !== drawerOpen) {
+        setDrawerOpen(isOpen);
+      }
+    });
+    
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['data-drawer']
+    });
+    
+    return () => observer.disconnect();
   }, [drawerOpen]);
 
   // close menu on outside click or ESC

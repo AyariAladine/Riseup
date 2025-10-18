@@ -113,51 +113,54 @@ export default function DashboardCalendar() {
   const DAY_HEIGHT = 1440;
 
   return (
-  <div className="panel" style={{ width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <h2 style={{ marginTop: 0, marginBottom: 0 }}>Calendar</h2>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div className="btn-group" role="group" aria-label="View toggle" style={{ marginRight: 8 }}>
-            <button className={`btn ${view === 'day' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setView('day')} type="button">Day</button>
-            <button className={`btn ${view === 'week' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setView('week')} type="button">Week</button>
+  <div className="panel calendar-container">
+      <div className="calendar-header">
+        <h2 className="calendar-title">Calendar</h2>
+        
+        {/* View toggle and navigation controls */}
+        <div className="calendar-controls">
+          <div className="btn-group" role="group" aria-label="View toggle">
+            <button 
+              className={`btn ${view === 'day' ? 'btn-primary' : 'btn-ghost'}`} 
+              onClick={() => setView('day')} 
+              type="button"
+            >
+              Day
+            </button>
+            <button 
+              className={`btn ${view === 'week' ? 'btn-primary' : 'btn-ghost'}`} 
+              onClick={() => setView('week')} 
+              type="button"
+            >
+              Week
+            </button>
           </div>
-          <button
-            className="btn btn-ghost"
-            onClick={() => {
-              const d = new Date(selected);
-              d.setDate(d.getDate() - 1);
-              setSelectedDate(formatDateISO(d));
-            }}
+          
+          <div className="calendar-nav">
+            <input
+              type="date"
+              className="input calendar-date-input"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+            />
+          </div>
+          
+          <button 
+            className="btn calendar-today-btn" 
+            onClick={() => setSelectedDate(formatDateISO(new Date()))}
           >
-            ◀
+            Today
           </button>
-          <input
-            type="date"
-            className="input"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-          />
-          <button
-            className="btn btn-ghost"
-            onClick={() => {
-              const d = new Date(selected);
-              d.setDate(d.getDate() + 1);
-              setSelectedDate(formatDateISO(d));
-            }}
-          >
-            ▶
-          </button>
-          <button className="btn" onClick={() => setSelectedDate(formatDateISO(new Date()))}>Today</button>
         </div>
       </div>
 
-  <p className="muted" style={{ marginTop: 6 }}>{view === 'day' ? 'Day view — scroll to see hours.' : 'Week view — 7 days with hourly rows.'}</p>
+  <p className="muted calendar-description">{view === 'day' ? 'Day view — scroll to see hours.' : 'Week view — 7 days with hourly rows.'}</p>
 
       {view === 'day' && (
-        <form onSubmit={createTask} style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <form onSubmit={createTask} style={{ display: "flex", gap: 6, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
           <input
             className="input"
-            style={{ flex: 1, minWidth: 220 }}
+            style={{ flex: 1, minWidth: '180px', fontSize: '0.875rem', padding: '6px 8px' }}
             placeholder="New task title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -167,9 +170,9 @@ export default function DashboardCalendar() {
             type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
-            style={{ width: 130 }}
+            style={{ width: '110px', fontSize: '0.875rem', padding: '6px 8px' }}
           />
-          <button className="btn btn-primary" type="submit" disabled={loading}>
+          <button className="btn btn-primary" type="submit" disabled={loading} style={{ padding: '6px 12px', fontSize: '0.875rem' }}>
             {loading ? 'Adding…' : 'Add'}
           </button>
         </form>
@@ -187,7 +190,7 @@ export default function DashboardCalendar() {
           style={{
             position: "relative",
             marginTop: 16,
-            height: 720,
+            height: 600,
             overflow: "auto",
             border: "1px solid var(--border)",
             borderRadius: 8,
@@ -198,10 +201,10 @@ export default function DashboardCalendar() {
           <div style={{ position: "relative", height: DAY_HEIGHT }}>
             {hours.map((h) => (
               <div key={h} style={{ position: "absolute", top: h * 60, left: 0, right: 0, height: 60 }}>
-                <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 70, paddingLeft: 8, color: "var(--muted)" }}>
+                <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 50, paddingLeft: 4, color: "var(--muted)", fontSize: '0.75rem' }}>
                   <div style={{ position: "sticky", top: 0 }}>{String(h).padStart(2, "0")}:00</div>
                 </div>
-                <div style={{ position: "absolute", left: 70, right: 0, top: 0, bottom: 0 }}>
+                <div style={{ position: "absolute", left: 50, right: 0, top: 0, bottom: 0 }}>
                   <div style={{ position: "absolute", left: 0, right: 0, top: 0, borderTop: "1px solid var(--border)" }} />
                   <div style={{ position: "absolute", left: 0, right: 0, top: 30, borderTop: "1px dashed var(--border)" }} />
                 </div>
@@ -209,7 +212,7 @@ export default function DashboardCalendar() {
             ))}
 
             {/* Events layer */}
-            <div style={{ position: "absolute", left: 70, right: 8, top: 0 }}>
+            <div style={{ position: "absolute", left: 50, right: 4, top: 0 }}>
               {tasksForDay.map((t) => {
                 if (!t.dueAt) return null;
                 const d = new Date(t.dueAt);
@@ -217,19 +220,20 @@ export default function DashboardCalendar() {
                 const top = minutes; // 1px per minute
                 const height = 40; // fixed height (no duration in model)
                 return (
-                  <div key={t._id} className="card" style={{ position: "absolute", top, left: 0, right: 0, height, padding: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div key={t._id} className="card" style={{ position: "absolute", top, left: 0, right: 0, height, padding: 6, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, fontSize: '0.875rem' }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
                       <input
                         type="checkbox"
                         checked={!!t.completed}
                         onChange={() => toggleComplete(t._id, !!t.completed)}
                         aria-label="Toggle complete"
+                        style={{ flexShrink: 0 }}
                       />
-                      <div style={{ textDecoration: t.completed ? "line-through" : "none" }}>{t.title}</div>
+                      <div style={{ textDecoration: t.completed ? "line-through" : "none", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div className="muted small">{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                      <button className="btn btn-ghost small" onClick={() => deleteTask(t._id)}>Delete</button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                      <div className="muted small" style={{ fontSize: '0.75rem' }}>{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                      <button className="btn btn-ghost small" onClick={() => deleteTask(t._id)} style={{ padding: '4px 8px', fontSize: '0.75rem' }}>Del</button>
                     </div>
                   </div>
                 );
@@ -241,7 +245,7 @@ export default function DashboardCalendar() {
         // Week view grid with 7 columns and hourly rows
         <div
           ref={scrollRef}
-          style={{ position: 'relative', marginTop: 16, height: 720, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--panel)' }}
+          style={{ position: 'relative', marginTop: 16, height: 600, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--panel)' }}
         >
           {(() => {
             // Determine the week (Sunday -> Saturday) containing selected date
@@ -255,14 +259,14 @@ export default function DashboardCalendar() {
             });
 
             return (
-              <div style={{ position: 'relative', height: DAY_HEIGHT }}>
+              <div style={{ position: 'relative', height: DAY_HEIGHT, minWidth: '100%' }}>
                 {/* Hour rows across all columns */}
                 {hours.map((h) => (
                   <div key={h} style={{ position: 'absolute', top: h * 60, left: 0, right: 0, height: 60 }}>
-                    <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 70, paddingLeft: 8, color: 'var(--muted)' }}>
+                    <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 50, paddingLeft: 4, color: 'var(--muted)', fontSize: '0.75rem' }}>
                       <div style={{ position: 'sticky', top: 0 }}>{String(h).padStart(2, '0')}:00</div>
                     </div>
-                    <div style={{ position: 'absolute', left: 70, right: 0, top: 0, bottom: 0 }}>
+                    <div style={{ position: 'absolute', left: 50, right: 0, top: 0, bottom: 0 }}>
                       <div style={{ position: 'absolute', left: 0, right: 0, top: 0, borderTop: '1px solid var(--border)' }} />
                       <div style={{ position: 'absolute', left: 0, right: 0, top: 30, borderTop: '1px dashed var(--border)' }} />
                     </div>
@@ -270,13 +274,13 @@ export default function DashboardCalendar() {
                 ))}
 
                 {/* Day columns */}
-                <div style={{ position: 'absolute', left: 70, right: 8, top: 0, bottom: 0, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+                <div style={{ position: 'absolute', left: 50, right: 4, top: 0, bottom: 0, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, minWidth: '600px' }}>
                   {days.map((d) => {
                     const dayKey = formatDateISO(d);
                     const dayTasks = tasks.filter((t) => t.dueAt && formatDateISO(new Date(t.dueAt)) === dayKey);
                     return (
-                      <div key={dayKey} style={{ position: 'relative' }}>
-                        <div className="small muted" style={{ position: 'sticky', top: 0, background: 'var(--panel)', padding: '4px 0', zIndex: 1 }}>
+                      <div key={dayKey} style={{ position: 'relative', minWidth: 0 }}>
+                        <div className="small muted" style={{ position: 'sticky', top: 0, background: 'var(--panel)', padding: '2px 0', zIndex: 1, fontSize: '0.7rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
                         </div>
                         {dayTasks.map((t) => {
@@ -285,12 +289,12 @@ export default function DashboardCalendar() {
                           const top = minutes;
                           const height = 40;
                           return (
-                            <div key={t._id} className="card" style={{ position: 'absolute', top, left: 0, right: 0, height, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <input type="checkbox" checked={!!t.completed} onChange={() => toggleComplete(t._id, !!t.completed)} aria-label="Toggle complete" />
-                                <div style={{ textDecoration: t.completed ? 'line-through' : 'none' }}>{t.title}</div>
+                            <div key={t._id} className="card" style={{ position: 'absolute', top, left: 0, right: 0, height, padding: 4, display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.7rem', overflow: 'hidden' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                                <input type="checkbox" checked={!!t.completed} onChange={() => toggleComplete(t._id, !!t.completed)} aria-label="Toggle complete" style={{ flexShrink: 0, transform: 'scale(0.85)' }} />
+                                <div style={{ textDecoration: t.completed ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.title}</div>
                               </div>
-                              <div className="muted small">{dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                              <div className="muted small" style={{ fontSize: '0.65rem', paddingLeft: '18px' }}>{dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                             </div>
                           );
                         })}

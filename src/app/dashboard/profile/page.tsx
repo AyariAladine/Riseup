@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { showNotification } from '@/components/NotificationProvider';
+import { useProfile, useReclamations } from '@/lib/useProfile';
 
 type Theme = 'system' | 'light' | 'dark';
 
@@ -19,6 +20,10 @@ type Reclamation = {
 };
 
 export default function DashboardProfile() {
+  // Use cached profile and reclamations data
+  const { profile, mutate: mutateProfile } = useProfile();
+  const { reclamations: cachedReclamations, mutate: mutateReclamations } = useReclamations();
+  
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,40 +51,25 @@ export default function DashboardProfile() {
   const [submittingReclamation, setSubmittingReclamation] = useState(false);
   const [editingReclamationId, setEditingReclamationId] = useState<string | null>(null);
 
+  // Update local state when cached profile data changes
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const res = await fetch('/api/profile', { credentials: 'include' });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!mounted) return;
-        setName(data.user?.name || '');
-        setEmail(data.user?.email || '');
-        setAvatar(data.user?.avatar || '');
-  setTheme(data.user?.preferences?.theme || 'system');
-  setIsPremium(!!data.user?.isPremium);
-        setEmailNotifications(Boolean(data.user?.preferences?.emailNotifications ?? true));
-        setIsOnline(Boolean(data.user?.preferences?.isOnline ?? true));
-      } catch {}
-    })();
-    return () => { mounted = false; };
-  }, []);
+    if (profile) {
+      setName(profile.name || '');
+      setEmail(profile.email || '');
+      setAvatar(profile.avatar || '');
+      setTheme(profile.preferences?.theme || 'system');
+      setIsPremium(!!profile.isPremium);
+      setEmailNotifications(Boolean(profile.preferences?.emailNotifications ?? true));
+      setIsOnline(Boolean(profile.preferences?.isOnline ?? true));
+    }
+  }, [profile]);
 
-  // Load reclamations
+  // Update local state when cached reclamations change
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const res = await fetch('/api/reclamations', { credentials: 'include' });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!mounted) return;
-        setReclamations(data.reclamations || []);
-      } catch {}
-    })();
-    return () => { mounted = false; };
-  }, []);
+    if (cachedReclamations && cachedReclamations.length > 0) {
+      setReclamations(cachedReclamations);
+    }
+  }, [cachedReclamations]);
 
   async function requestPasswordChange() {
     if (!password) {
@@ -180,6 +170,10 @@ export default function DashboardProfile() {
       setMessage('Profile updated');
       setName(data.user?.name || name);
       showNotification('Profile updated successfully!', 'info');
+      
+      // Update the SWR cache with new data
+      mutateProfile();
+      
       try {
         // notify header about updated name/avatar/preferences
         window.dispatchEvent(new CustomEvent('profile-updated', { detail: { name: data.user?.name, avatar: data.user?.avatar } }));
@@ -283,6 +277,9 @@ export default function DashboardProfile() {
         setReclamations(prev => prev.map(r => r._id === editingReclamationId ? data.reclamation : r));
         setReclamationMessage('Reclamation updated successfully');
         showNotification('Reclamation updated successfully!', 'success');
+        
+        // Update the SWR cache
+        mutateReclamations();
       } else {
         // Create new
         const res = await fetch('/api/reclamations', {
@@ -302,6 +299,9 @@ export default function DashboardProfile() {
         setReclamations(prev => [data.reclamation, ...prev]);
         setReclamationMessage('Reclamation submitted successfully');
         showNotification('Reclamation sent successfully!', 'success');
+        
+        // Update the SWR cache
+        mutateReclamations();
       }
       
       // Reset form
@@ -335,6 +335,9 @@ export default function DashboardProfile() {
       setReclamations(prev => prev.filter(r => r._id !== id));
       setReclamationMessage('Reclamation deleted');
       showNotification('Reclamation deleted successfully!', 'success');
+      
+      // Update the SWR cache
+      mutateReclamations();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setReclamationMessage(msg);
@@ -386,86 +389,92 @@ export default function DashboardProfile() {
         background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)',
         border: '2px solid rgba(234, 179, 8, 0.2)',
         borderRadius: '12px',
-        padding: '24px',
+        padding: '20px',
         position: 'relative',
         overflow: 'hidden'
-      } : {}}>
+      } : { padding: '20px' }}>
         {isPremium && (
           <div style={{
             position: 'absolute',
             top: 0,
             right: 0,
-            padding: '8px 16px',
+            padding: '6px 12px',
             background: 'linear-gradient(135deg, #eab308 0%, #f59e0b 100%)',
             borderBottomLeftRadius: '12px',
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '4px',
             boxShadow: '0 4px 12px rgba(234, 179, 8, 0.3)'
           }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="white">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="white">
               <path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"/>
             </svg>
-            <span style={{ color: 'white', fontSize: '12px', fontWeight: 600 }}>PREMIUM</span>
+            <span style={{ color: 'white', fontSize: '11px', fontWeight: 600 }}>PREMIUM</span>
           </div>
         )}
         <h1 className="github-page-title" style={isPremium ? { 
           background: 'linear-gradient(135deg, #eab308 0%, #f59e0b 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
-        } : {}}>Profile</h1>
-        <p className="github-page-description">Update your personal info and manage reclamations.</p>
+          backgroundClip: 'text',
+          fontSize: '28px',
+          marginBottom: '6px'
+        } : { fontSize: '28px', marginBottom: '6px' }}>Profile</h1>
+        <p className="github-page-description" style={{ fontSize: '14px' }}>Update your personal info and manage reclamations.</p>
       </div>
 
-      <div style={{ display: 'grid', gap: '24px', maxWidth: '1200px' }}>
-        {/* Profile Section */}
-        <div className="github-card" style={isPremium ? {
-          border: '2px solid rgba(234, 179, 8, 0.2)',
-          background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)',
-          boxShadow: '0 8px 24px rgba(234, 179, 8, 0.1)'
-        } : {}}>
-          <h2 style={{ marginTop: 0 }}>Personal Information</h2>
-          
+      {/* Two-column layout: Profile on left, space for achievements/NFTs on right */}
+      <div className="profile-layout-grid">
+        {/* Left Column - Profile Forms */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
+          {/* Profile Section */}
+          <div className="github-card" style={isPremium ? {
+            border: '2px solid rgba(234, 179, 8, 0.2)',
+            background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)',
+            boxShadow: '0 8px 24px rgba(234, 179, 8, 0.1)',
+            padding: '18px'
+          } : { padding: '18px' }}>
+            <h2 style={{ marginTop: 0, fontSize: '17px', marginBottom: '14px' }}>Personal Information</h2>
+            
           {isPremium ? (
-            <div className="card" style={{ padding: 12, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+            <div className="card" style={{ padding: 10, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <svg width="20" height="20" viewBox="0 0 16 16" fill="#eab308">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="#eab308">
                   <path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"/>
                 </svg>
                 <div>
-                  <div className="small" style={{ fontWeight: 600, color: '#eab308' }}>Premium Member</div>
-                  <div className="small muted">Thank you for your support!</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#eab308' }}>Premium Member</div>
+                  <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Thank you for your support!</div>
                 </div>
               </div>
-              <a href="/dashboard/premium" className="github-btn">Manage</a>
+              <a href="/dashboard/premium" className="github-btn" style={{ padding: '4px 12px', fontSize: '13px' }}>Manage</a>
             </div>
           ) : (
-            <div className="card" style={{ padding: 12, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'rgba(31, 111, 235, 0.1)', border: '1px solid rgba(31, 111, 235, 0.3)' }}>
+            <div className="card" style={{ padding: 10, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'rgba(31, 111, 235, 0.1)', border: '1px solid rgba(31, 111, 235, 0.3)' }}>
               <div>
-                <div className="small" style={{ fontWeight: 600 }}>Go Premium</div>
-                <div className="small muted">Unlock advanced features and support development.</div>
+                <div style={{ fontSize: '13px', fontWeight: 600 }}>Go Premium</div>
+                <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Unlock advanced features and support development.</div>
               </div>
-              <a href="/dashboard/premium" className="github-btn github-btn-primary">Upgrade</a>
+              <a href="/dashboard/premium" className="github-btn github-btn-primary" style={{ padding: '4px 12px', fontSize: '13px' }}>Upgrade</a>
             </div>
           )}
 
-          {message && <div style={{ marginTop: 8, marginBottom: 8, padding: '8px 12px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px' }}>{message}</div>}
+          {message && <div style={{ marginTop: 8, marginBottom: 8, padding: '6px 10px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', fontSize: '13px' }}>{message}</div>}
 
           <form onSubmit={save}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
               <div style={{ 
                 position: 'relative',
-                width: 64, 
-                height: 64,
+                width: 56, 
+                height: 56,
               }}>
                 {isPremium && (
                   <div style={{
                     position: 'absolute',
-                    top: -4,
-                    left: -4,
-                    right: -4,
-                    bottom: -4,
+                    top: -3,
+                    left: -3,
+                    right: -3,
+                    bottom: -3,
                     borderRadius: '50%',
                     background: 'linear-gradient(45deg, #eab308, #f59e0b, #eab308)',
                     backgroundSize: '200% 200%',
@@ -474,18 +483,18 @@ export default function DashboardProfile() {
                   }} />
                 )}
                 <div style={{ 
-                  width: 64, 
-                  height: 64, 
+                  width: 56, 
+                  height: 56, 
                   borderRadius: '50%', 
                   overflow: 'hidden', 
                   background: 'var(--panel-2)', 
                   position: 'relative', 
-                  border: isPremium ? '3px solid #eab308' : '2px solid var(--border)',
-                  boxShadow: isPremium ? '0 0 20px rgba(234, 179, 8, 0.4)' : 'none',
+                  border: isPremium ? '2px solid #eab308' : '2px solid var(--border)',
+                  boxShadow: isPremium ? '0 0 16px rgba(234, 179, 8, 0.4)' : 'none',
                   zIndex: 1
                 }}>
                   {avatar ? (
-                    <Image src={avatar} alt="avatar" fill sizes="64px" style={{ objectFit: 'cover' }} />
+                    <Image src={avatar} alt="avatar" fill sizes="56px" style={{ objectFit: 'cover' }} />
                   ) : (
                     <div style={{ 
                       width: '100%', 
@@ -493,7 +502,7 @@ export default function DashboardProfile() {
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'center', 
-                      fontSize: '24px', 
+                      fontSize: '20px', 
                       color: isPremium ? '#eab308' : 'var(--muted)',
                       fontWeight: isPremium ? 700 : 400
                     }}>
@@ -502,39 +511,39 @@ export default function DashboardProfile() {
                   )}
                 </div>
               </div>
-              <label className="github-btn">
+              <label className="github-btn" style={{ padding: '6px 12px', fontSize: '13px' }}>
                 <input type="file" accept="image/*" onChange={onAvatarFile} style={{ display: 'none' }} />
                 Upload Avatar
               </label>
             </div>
 
-            <label style={{ display: 'block', marginBottom: 12 }}>
-              <div className="small muted" style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label style={{ display: 'block', marginBottom: 10 }}>
+              <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
                 Name
                 {isPremium && (
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="#eab308">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="#eab308">
                     <title>Premium Member</title>
                     <path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"/>
                   </svg>
                 )}
               </div>
-              <input value={name} onChange={(e) => setName(e.target.value)} required style={{ width: '100%' }} />
+              <input value={name} onChange={(e) => setName(e.target.value)} required style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }} />
             </label>
 
-            <label style={{ display: 'block', marginBottom: 12 }}>
-              <div className="small muted" style={{ marginBottom: 4 }}>Email</div>
-              <input value={email} disabled style={{ width: '100%', opacity: 0.6 }} />
+            <label style={{ display: 'block', marginBottom: 10 }}>
+              <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>Email</div>
+              <input value={email} disabled style={{ width: '100%', opacity: 0.6, padding: '8px 10px', fontSize: '14px' }} />
             </label>
 
-            <label style={{ display: 'block', marginBottom: 12 }}>
-              <div className="small muted" style={{ marginBottom: 4 }}>New password (optional)</div>
-              <input type="password" value={password} placeholder="••••••••" onChange={(e) => setPassword(e.target.value)} style={{ width: '100%' }} />
+            <label style={{ display: 'block', marginBottom: 10 }}>
+              <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>New password (optional)</div>
+              <input type="password" value={password} placeholder="••••••••" onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }} />
             </label>
 
             {password && (
-              <label style={{ display: 'block', marginBottom: 12 }}>
-                <div className="small muted" style={{ marginBottom: 4 }}>Current password (required to change)</div>
-                <input type="password" value={currentPassword} placeholder="Current password" onChange={(e) => setCurrentPassword(e.target.value)} required={!!password} style={{ width: '100%' }} />
+              <label style={{ display: 'block', marginBottom: 10 }}>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>Current password (required to change)</div>
+                <input type="password" value={currentPassword} placeholder="Current password" onChange={(e) => setCurrentPassword(e.target.value)} required={!!password} style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }} />
               </label>
             )}
 
@@ -642,23 +651,24 @@ export default function DashboardProfile() {
         </div>
 
         {/* Reclamations Section */}
-        <div className="github-card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div className="github-card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
-              <h2 style={{ margin: 0 }}>Reclamations</h2>
-              <p className="small muted" style={{ margin: '4px 0 0 0' }}>Submit and track your support requests</p>
+              <h2 style={{ margin: 0, fontSize: '18px' }}>Reclamations</h2>
+              <p style={{ fontSize: '12px', color: 'var(--muted)', margin: '2px 0 0 0' }}>Submit and track your support requests</p>
             </div>
             <button 
               className="github-btn github-btn-primary" 
               onClick={() => setShowReclamationForm(!showReclamationForm)}
               type="button"
+              style={{ padding: '6px 12px', fontSize: '13px' }}
             >
-              {showReclamationForm ? 'Cancel' : '+ New Reclamation'}
+              {showReclamationForm ? 'Cancel' : '+ New'}
             </button>
           </div>
 
           {reclamationMessage && (
-            <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px' }}>
+            <div style={{ marginBottom: 12, padding: '6px 10px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', fontSize: '13px' }}>
               {reclamationMessage}
             </div>
           )}
@@ -831,6 +841,20 @@ export default function DashboardProfile() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+        </div>
+
+        {/* Right Column - Achievements & NFTs Placeholder */}
+        <div>
+          <div className="github-card" style={{ padding: '20px', minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
+            <div style={{ textAlign: 'center' }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ margin: '0 auto 12px', opacity: 0.3 }}>
+                <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
+              </svg>
+              <div style={{ fontSize: '14px', fontWeight: 500 }}>Achievements & NFTs</div>
+              <div style={{ fontSize: '12px', marginTop: '4px' }}>Coming soon...</div>
+            </div>
           </div>
         </div>
       </div>

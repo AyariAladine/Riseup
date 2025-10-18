@@ -185,19 +185,30 @@ label { color: var(--muted); font-size: 13px; display: block; margin-bottom: 8px
 }
 
 .github-logo-icon {
-  width: 32px;
-  height: 32px;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
   background: linear-gradient(135deg, #3b82f6, #06b6d4);
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .github-logo-svg {
-  width: 20px;
-  height: 20px;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  flex-shrink: 0;
 }
 
 .github-brand-text {
@@ -400,7 +411,124 @@ label { color: var(--muted); font-size: 13px; display: block; margin-bottom: 8px
   color: var(--muted);
 }
 
-/* GitHub-style Sidebar */
+/* GitHub-style Drawer - Always slides from left, closed by default */
+.github-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 80vw;
+  background: var(--panel-2);
+  border-right: 1px solid var(--border);
+  transform: translateX(-100%);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 100;
+  overflow-y: auto;
+  padding: 0 16px 16px;
+  display: block;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  /* Ensure it stays on the left */
+  right: auto;
+}
+
+/* Drawer opens on toggle (mobile and desktop) */
+body[data-drawer='open'] .github-sidebar {
+  transform: translateX(0);
+}
+
+.github-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 90;
+  display: none;
+}
+
+body[data-drawer='open'] .github-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+  display: block;
+}
+
+/* Desktop: No backdrop, but drawer still toggleable */
+@media (min-width: 1024px) {
+  .github-sidebar {
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* No backdrop on desktop - can interact with content behind */
+  .github-backdrop {
+    display: none !important;
+  }
+  
+  /* Push content when drawer is open on desktop */
+  body[data-drawer='open'] .dashboard-main {
+    margin-left: 280px !important;
+  }
+}
+
+/* Drawer Header */
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid var(--border);
+  margin: 0 -16px 12px -16px;
+  background: var(--panel-2);
+}
+
+.drawer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drawer-logo {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.drawer-logo-svg {
+  width: 20px;
+  height: 20px;
+}
+
+.drawer-brand-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+.drawer-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.drawer-close-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fg);
+}
+
 .github-sidebar-header {
   display: flex;
   align-items: center;
@@ -436,6 +564,7 @@ label { color: var(--muted); font-size: 13px; display: block; margin-bottom: 8px
   display: flex;
   flex-direction: column;
   gap: 2px;
+  margin-top: 8px;
 }
 
 .github-sidebar-item {
@@ -472,6 +601,131 @@ label { color: var(--muted); font-size: 13px; display: block; margin-bottom: 8px
 
 .github-sidebar-label {
   flex: 1;
+}
+
+/* Calendar Styles */
+.calendar-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.calendar-header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.calendar-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.calendar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.calendar-controls .btn-group {
+  margin-right: 4px;
+}
+
+.calendar-controls .btn {
+  padding: 8px 14px;
+  font-size: 0.875rem;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.calendar-nav-btn {
+  padding: 8px 12px !important;
+  min-width: auto !important;
+  font-size: 0.875rem !important;
+}
+
+.calendar-date-input {
+  flex: 1;
+  max-width: 180px;
+  font-size: 0.875rem;
+  padding: 8px;
+  text-align: center;
+}
+
+.calendar-today-btn {
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.calendar-description {
+  margin-top: 8px;
+  margin-bottom: 12px;
+  font-size: 0.875rem;
+}
+
+/* Mobile Calendar Styles */
+@media (max-width: 640px) {
+  .calendar-header {
+    gap: 12px;
+  }
+  
+  .calendar-title {
+    font-size: 1.25rem;
+  }
+  
+  .calendar-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .calendar-controls .btn-group {
+    width: 100%;
+    margin-right: 0;
+  }
+  
+  .calendar-controls .btn-group .btn {
+    flex: 1;
+    padding: 10px 16px;
+    font-size: 1rem;
+  }
+  
+  .calendar-nav {
+    width: 100%;
+    flex: unset;
+  }
+  
+  .calendar-nav-btn {
+    padding: 10px 14px !important;
+    font-size: 1rem !important;
+  }
+  
+  .calendar-date-input {
+    flex: 1;
+    max-width: none;
+    font-size: 1rem;
+    padding: 10px 12px;
+  }
+  
+  .calendar-today-btn {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 1rem;
+  }
+  
+  .calendar-description {
+    font-size: 0.8125rem;
+  }
 }
 
 /* small utilities */
@@ -818,6 +1072,234 @@ kbd {
 /* keep some legacy classes from earlier dev to avoid visual regressions */
 a { color: var(--accent); }
 
+
+/* --- Auth Pages (Login, Signup, Forgot Password) --- */
+.auth-page {
+  min-height: calc(100vh - 60px); /* Account for header */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 40px 20px;
+  /* Override parent container/main styles */
+  margin: -16px -16px 0 -16px !important;
+  width: calc(100% + 32px) !important;
+  box-sizing: border-box;
+}
+
+@media (max-width: 720px) {
+  .auth-page {
+    min-height: calc(100vh - 60px);
+    padding: 20px 16px 40px;
+  }
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.auth-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 40px 32px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.auth-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-radius: 12px;
+  color: white;
+}
+
+.auth-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--fg);
+  margin: 0 0 8px 0;
+}
+
+.auth-subtitle {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.auth-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 14px;
+}
+
+.auth-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  color: #10b981;
+  font-size: 14px;
+}
+
+.auth-submit {
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.auth-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.auth-link {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.auth-link:hover {
+  color: var(--fg);
+}
+
+.auth-link-primary {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.auth-link-primary:hover {
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+.auth-divider {
+  color: var(--border);
+}
+
+.auth-footer {
+  margin-top: 32px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.auth-footer-link {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.auth-footer-link:hover {
+  color: var(--fg);
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 32px 24px;
+  }
+  
+  .auth-title {
+    font-size: 24px;
+  }
+}
+
+/* Mobile Drawer Fixes */
+@media (max-width: 1023px) {
+  .github-sidebar {
+    max-width: 280px;
+    width: 280px;
+  }
+  
+  .github-sidebar-nav {
+    margin-top: 0;
+    padding: 8px 0;
+  }
+  
+  .github-sidebar-item {
+    padding: 12px 16px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .github-sidebar-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .github-sidebar-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .github-sidebar-label {
+    flex: 1;
+  }
+  
+  .github-backdrop {
+    display: block;
+  }
+  
+  /* Ensure drawer doesn't have weird spacing on mobile */
+  body[data-drawer='open'] .dashboard-main {
+    margin-left: 0 !important;
+  }
+}
+
+/* Profile page responsive layout */
+.profile-layout-grid {
+  display: grid;
+  grid-template-columns: 100%;
+  gap: 20px;
+  align-items: start;
+  max-width: 1400px;
+}
+
+@media (min-width: 769px) {
+  .profile-layout-grid {
+    grid-template-columns: 550px 1fr;
+    gap: 32px;
+  }
+}
 
 /* --- Header / avatar styles (GitHub-like) --- */
 .avatar-wrapper { width:36px; height:36px; border-radius:999px; overflow:hidden; display:inline-flex; align-items:center; justify-content:center; background: linear-gradient(135deg,#3b82f6,#06b6d4); color:white; font-weight:700; }

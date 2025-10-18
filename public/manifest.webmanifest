@@ -1,56 +1,22 @@
 {
-  "name": "RiseUP - Task Management & Learning",
+  "name": "RiseUP",
   "short_name": "RiseUP",
-  "description": "Application Progressive Web pour la gestion des tâches, apprentissage et productivité avec mode hors ligne",
+  "description": "Task management and learning app",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b0d0f",
   "theme_color": "#0b0d0f",
-  "orientation": "portrait-primary",
   "scope": "/",
   "icons": [
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon.svg",
+      "src": "/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
-      "src": "/icon.svg",
+      "src": "/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
-  ],
-  "categories": ["productivity", "education", "utilities"],
-  "shortcuts": [
-    {
-      "name": "Dashboard",
-      "short_name": "Dashboard",
-      "description": "Accéder au tableau de bord",
-      "url": "/dashboard",
-      "icons": [{ "src": "/icon.svg", "sizes": "96x96" }]
-    },
-    {
-      "name": "Tasks",
-      "short_name": "Tâches",
-      "description": "Voir mes tâches",
-      "url": "/dashboard/tasks",
-      "icons": [{ "src": "/icon.svg", "sizes": "96x96" }]
-    },
-    {
-      "name": "Learn",
-      "short_name": "Apprendre",
-      "description": "Mode apprentissage",
-      "url": "/learn",
-      "icons": [{ "src": "/icon.svg", "sizes": "96x96" }]
-    }
-  ],
-  "prefer_related_applications": false
+  ]
 }
