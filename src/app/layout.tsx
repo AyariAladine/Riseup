@@ -3,10 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ConditionalHeader from '@/components/ConditionalHeader';
 import ConditionalFooter from '@/components/ConditionalFooter';
-import PWARegister from '@/components/PWARegister';
-import PushSubscriberClient from '@/components/PushSubscriberClient';
-import UserProvider from '@/components/UserProvider';
-import NotificationProvider from '@/components/NotificationProvider';
+import ClientProviders from '@/components/ClientProviders';
 // Import a thin client-only wrapper for BottomBar. This keeps the server
 // layout as a Server Component while allowing BottomBar to run on the client.
 import BottomBarClient from '@/components/BottomBarClient';
@@ -35,8 +32,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Allow zooming for accessibility
+  userScalable: true,
+  maximumScale: 5,
   themeColor: "#0b0d0f",
 };
 
@@ -57,16 +55,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-  <PWARegister />
-  <UserProvider />
-  <NotificationProvider />
+  <ClientProviders />
     <ConditionalHeader />
-  <PushSubscriberClient />
         <main className="container" style={{ maxWidth: '100%', width: '100%' }}>
           <div style={{ width: '100%' }}>{children}</div>
         </main>
         {/* Mobile bottom navigation (fixed). Visible under 720px width. */}
-        <BottomBarClient />
+  <BottomBarClient />
   <ConditionalFooter />
       </body>
     </html>

@@ -2,8 +2,26 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  experimental: {
+    // Prefer the default but keep placeholder in case we want other flags
+  },
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
   async headers() {
     return [
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        source: '/:all*(js|css|png|jpg|jpeg|gif|svg|webp|ico|woff|woff2|ttf)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=2592000, immutable' }, // 30 days
+        ],
+      },
       {
         source: '/:path*',
         headers: [

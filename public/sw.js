@@ -5,16 +5,9 @@ const CACHE_VERSION = 'v3';
 const CACHE_NAME = `riseup-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
 
-// Assets critiques à mettre en cache immédiatement
+// Assets critiques à mettre en cache immédiatement (uniquement statiques)
 const CRITICAL_ASSETS = [
-  '/',
   '/offline',
-  '/dashboard',
-  '/dashboard/assistant',
-  '/dashboard/calendar',
-  '/dashboard/profile',
-  '/learn',
-  '/auth/login',
   '/manifest.webmanifest',
   '/icon.svg',
 ];
@@ -194,10 +187,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // Stratégie Cache First pour les pages HTML
+  // Stratégie Network First pour les pages HTML dynamiques
   if (request.mode === 'navigate') {
     event.respondWith(
-      cacheFirst(request).catch(async () => {
+      networkFirst(request).catch(async () => {
         // Fallback sur la page offline
         const cache = await caches.open(CACHE_NAME);
         const offlineResponse = await cache.match(OFFLINE_URL);
