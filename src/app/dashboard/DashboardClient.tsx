@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { setUser as setGlobalUser } from '@/lib/user-client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import SurveyModal from '@/components/SurveyModal';
 
 interface User {
   id: string;
@@ -15,36 +16,57 @@ interface User {
 }
 
 export default function DashboardClient({ initialUser }: { initialUser: User | null }) {
-  const [user, setUser] = useState<User | null>(initialUser);
-  const [loading, setLoading] = useState<boolean>(!initialUser);
+  const [user, setUser] = useState<User | null>(null); // Start with null to force fresh fetch
+  const [loading, setLoading] = useState<boolean>(true); // Always start loading
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+  const [onboardingData, setOnboardingData] = useState<any>(null);
   const router = useRouter();
 
   useEffect(() => {
-    // If we didn't receive a user from the server, fetch on client as a fallback
-    if (!initialUser) {
-      const fetchUser = async () => {
-        try {
-          const res = await fetch('/api/dashboard');
-          if (!res.ok) throw new Error('Unauthorized');
+    // Always fetch fresh user data on mount to avoid showing cached data
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/dashboard', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+        if (!res.ok) throw new Error('Unauthorized');
 
-          const data = await res.json();
-          setUser(data.user);
-          setGlobalUser(data.user || null);
-        } catch {
-          // Clear cookie server-side via logout endpoint and redirect
-          await fetch('/api/auth/logout', { method: 'POST' });
-          router.push('/auth/login');
-        } finally {
-          setLoading(false);
+        const data = await res.json();
+        setUser(data.user);
+        setGlobalUser(data.user || null);
+
+        // Check onboarding status but do not auto-show modal.
+        // Instead show a 'Take questionnaire' button in header if not completed.
+        try {
+          const onboardingRes = await fetch('/api/onboarding');
+          if (onboardingRes.ok) {
+            const onboardingJson = await onboardingRes.json();
+            setOnboardingData(onboardingJson);
+            // Do NOT auto-show the onboarding modal; user will opt-in
+          }
+        } catch (err) {
+          console.error('Failed to check onboarding status:', err);
         }
-      };
-      fetchUser();
-    } else {
-      // We have initial user; propagate to global client state immediately
-      setGlobalUser(initialUser || null);
-      setLoading(false);
-    }
-  }, [initialUser, router]);
+      } catch {
+        // Clear cookie server-side via logout endpoint and redirect
+        await fetch('/api/auth/logout', { method: 'POST' });
+        router.push('/auth/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, [router]);
+
+  // Log when the onboarding modal is toggled (avoid inline console.debug in JSX)
+  useEffect(() => {
+    console.debug('[Dashboard] showOnboarding state changed:', showOnboarding);
+  }, [showOnboarding]);
 
   if (loading) {
     return (
@@ -61,6 +83,20 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
         <div>
           <h1 className="github-page-title">Welcome{user?.name ? `, ${user.name}` : ''}! 👋</h1>
           <p className="github-page-description">Choose where you'd like to start</p>
+        </div>
+        <div style={{ marginLeft: 'auto' }}>
+          {/* Show 'Take Survey' card-style button only when survey not completed */}
+          {onboardingData && !onboardingData.hasCompletedOnboarding && (
+            <div onClick={() => { console.debug('[Dashboard] Take Survey clicked'); setShowOnboarding(true); }} className="github-card github-card-interactive" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '10px 18px', borderRadius: 12, background: 'linear-gradient(135deg,#FFE6D1,#FFD8C0)' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7l10 5 10-5-10-5z" fill="#D2691E"/></svg>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ fontWeight: 800, color: '#8B4513' }}>Take Survey</div>
+                <div style={{ fontSize: 12, color: '#A0522D' }}>Personalize your learning</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -131,6 +167,20 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
           <div className="github-card-arrow">→</div>
   </Link>
       </div>
+
+      {/* Onboarding Modal - Optional */}
+      {showOnboarding && (
+        <div>
+          <SurveyModal
+            onComplete={(profile) => {
+              console.debug('[Dashboard] SurveyModal onComplete', profile);
+              setShowOnboarding(false);
+              setOnboardingData({ hasCompletedOnboarding: true, profile });
+            }}
+            onSkip={() => { console.debug('[Dashboard] SurveyModal onSkip'); setShowOnboarding(false); }}
+          />
+        </div>
+      )}
     </div>
   );
 }

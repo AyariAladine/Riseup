@@ -11,8 +11,10 @@ export async function GET(req) {
     if (!rl.ok) return new Response(JSON.stringify({ message: 'Too many requests' }), { status: 429 });
 
     const { user } = await getUserFromRequest(req);
-    const tasks = await Task.find({ user: user._id }).sort({ dueAt: 1, createdAt: -1 });
-    return new Response(JSON.stringify({ tasks }), { status: 200 });
+  const tasks = await Task.find({ user: user._id }).sort({ dueAt: 1, createdAt: -1 }).lean();
+  console.log('Tasks GET - returning tasks count:', tasks.length);
+  tasks.forEach(t => console.log(' task:', { id: t._id.toString(), dueAt: t.dueAt, dueDate: t.dueDate }));
+  return new Response(JSON.stringify({ tasks }), { status: 200 });
   } catch (err) {
     if (err.message === 'NO_TOKEN' || err.message === 'INVALID_TOKEN') {
       return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });

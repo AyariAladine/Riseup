@@ -65,6 +65,7 @@ export default function LoginPage() {
   setGlobalUser(data.user || null);
 
   // Server sets HttpOnly cookie with token. Redirect to dashboard.
+  // Dashboard will show onboarding modal if needed
   router.push('/dashboard');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

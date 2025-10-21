@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type Task = { _id: string; title: string; dueAt?: string; completed?: boolean };
+type Task = { _id: string; title: string; dueAt?: string; dueDate?: string; createdAt?: string; completed?: boolean; difficulty?: string; description?: string; category?: string; estimatedTime?: number };
+type AITask = { id: string; title: string; description: string; difficulty: string; category: string; estimatedTime: number; skills: string[] };
+type AIRecommendation = { tasks: AITask[]; tasksPerWeek: number; difficulty: string; adaptiveMessage: string };
 
 function formatDateISO(date: Date) {
   return date.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -29,6 +31,12 @@ export default function DashboardCalendar() {
   const [error, setError] = useState<string>("");
   const [view, setView] = useState<"day" | "week">("week");
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  
+  // AI Recommendations state
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiRecommendations, setAIRecommendations] = useState<AIRecommendation | null>(null);
+  const [aiLoading, setAILoading] = useState(false);
+  const [selectedTaskDates, setSelectedTaskDates] = useState<{ [key: number]: string }>({});
 
   async function fetchTasks() {
     setLoading(true);
@@ -41,12 +49,85 @@ export default function DashboardCalendar() {
         throw new Error(msg);
       }
       const data = await res.json();
-      setTasks(data.tasks || []);
+  console.log('Client fetchTasks - got tasks:', data.tasks);
+  setTasks(data.tasks || []);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg || "Error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Get AI Recommendations
+  async function getAIRecommendations() {
+    setAILoading(true);
+    try {
+      const res = await fetch('/api/ai/recommend', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to get recommendations');
+      }
+      
+      const data = await res.json();
+      setAIRecommendations(data);
+      setShowAIModal(true);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      alert(msg || 'Error getting AI recommendations. Make sure the Flask AI service is running on port 5000.');
+    } finally {
+      setAILoading(false);
+    }
+  }
+
+  // Schedule AI task to calendar
+  async function scheduleAITask(task: AITask, index: number) {
+    const dueDate = selectedTaskDates[index];
+    if (!dueDate) {
+      alert('Please select a due date first');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/calendar', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task: {
+            title: task.title,
+            description: task.description,
+            difficulty: task.difficulty,
+            category: task.category,
+            estimatedTime: task.estimatedTime,
+            skills: task.skills
+          },
+          dueDate: `${dueDate}T09:00:00`,
+          aiRecommendation: aiRecommendations
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to add task to calendar');
+      }
+
+      alert('✅ Task added to calendar!');
+      fetchTasks(); // Refresh tasks
+      
+      // Remove this task from the list
+      setSelectedTaskDates(prev => {
+        const newDates = { ...prev };
+        delete newDates[index];
+        return newDates;
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      alert(msg || 'Error scheduling task');
     }
   }
 
@@ -71,8 +152,9 @@ export default function DashboardCalendar() {
 
   const tasksForDay = useMemo(() => {
     return tasks.filter((t) => {
-      if (!t.dueAt) return false;
-      const d = new Date(t.dueAt);
+      const dateStr = t.dueAt || t.dueDate || t.createdAt;
+      if (!dateStr) return false;
+      const d = new Date(dateStr);
       return d >= dayStart && d <= dayEnd;
     });
   }, [tasks, dayStart, dayEnd]);
@@ -116,6 +198,30 @@ export default function DashboardCalendar() {
   <div className="panel calendar-container">
       <div className="calendar-header">
         <h2 className="calendar-title">Calendar</h2>
+        
+        {/* AI Recommendations Button */}
+        <button
+          onClick={getAIRecommendations}
+          disabled={aiLoading}
+          className="btn btn-primary"
+          style={{
+            background: aiLoading ? '#999' : 'linear-gradient(135deg, #FF6B6B, #FF8E53)',
+            border: 'none',
+            color: 'white',
+            padding: '10px 20px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            cursor: aiLoading ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginLeft: 'auto',
+            marginRight: '12px'
+          }}
+        >
+          🤖 {aiLoading ? 'Loading...' : 'Get AI Recommendations'}
+        </button>
         
         {/* View toggle and navigation controls */}
         <div className="calendar-controls">
@@ -277,14 +383,18 @@ export default function DashboardCalendar() {
                 <div style={{ position: 'absolute', left: 50, right: 4, top: 0, bottom: 0, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, minWidth: '600px' }}>
                   {days.map((d) => {
                     const dayKey = formatDateISO(d);
-                    const dayTasks = tasks.filter((t) => t.dueAt && formatDateISO(new Date(t.dueAt)) === dayKey);
+                    const dayTasks = tasks.filter((t) => {
+                      const dtStr = t.dueAt || t.dueDate || t.createdAt;
+                      if (!dtStr) return false;
+                      return formatDateISO(new Date(dtStr)) === dayKey;
+                    });
                     return (
                       <div key={dayKey} style={{ position: 'relative', minWidth: 0 }}>
                         <div className="small muted" style={{ position: 'sticky', top: 0, background: 'var(--panel)', padding: '2px 0', zIndex: 1, fontSize: '0.7rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
                         </div>
                         {dayTasks.map((t) => {
-                          const dt = new Date(t.dueAt!);
+                          const dt = new Date(t.dueAt || t.dueDate || t.createdAt!);
                           const minutes = dt.getHours() * 60 + dt.getMinutes();
                           const top = minutes;
                           const height = 40;
@@ -305,6 +415,168 @@ export default function DashboardCalendar() {
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {/* AI Recommendations Modal */}
+      {showAIModal && aiRecommendations && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}
+          onClick={() => setShowAIModal(false)}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #FFF8E7 0%, #FFE5D9 100%)',
+              borderRadius: '16px',
+              padding: '32px',
+              maxWidth: '800px',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setShowAIModal(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'transparent',
+                border: 'none',
+                fontSize: '24px',
+                cursor: 'pointer',
+                color: '#8B4513'
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Header */}
+            <div style={{ marginBottom: '24px' }}>
+              <h2 style={{ color: '#8B4513', fontSize: '28px', fontWeight: 'bold', marginBottom: '8px' }}>
+                🤖 AI Task Recommendations
+              </h2>
+              <p style={{ color: '#A0522D', fontSize: '14px' }}>
+                {aiRecommendations.adaptiveMessage || 'Here are personalized tasks based on your learning profile.'}
+              </p>
+              <p style={{ color: '#D2691E', fontSize: '12px', marginTop: '8px' }}>
+                Recommended: {aiRecommendations.tasksPerWeek} tasks per week • Difficulty: {aiRecommendations.difficulty}
+              </p>
+            </div>
+
+            {/* Task List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {aiRecommendations.tasks.map((task, index) => (
+                <div
+                  key={index}
+                  style={{
+                    background: 'white',
+                    borderRadius: '12px',
+                    padding: '20px',
+                    border: '2px solid #FFECD1',
+                    boxShadow: '0 2px 8px rgba(139, 69, 19, 0.1)'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <h3 style={{ color: '#8B4513', fontSize: '18px', fontWeight: 'bold', flex: 1 }}>
+                      {task.title}
+                    </h3>
+                    <span
+                      style={{
+                        background:
+                          task.difficulty === 'easy'
+                            ? '#4CAF50'
+                            : task.difficulty === 'medium'
+                            ? '#FF9800'
+                            : '#F44336',
+                        color: 'white',
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        marginLeft: '12px'
+                      }}
+                    >
+                      {task.difficulty}
+                    </span>
+                  </div>
+
+                  <p style={{ color: '#666', fontSize: '14px', marginBottom: '12px', lineHeight: '1.5' }}>
+                    {task.description}
+                  </p>
+
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                    <span style={{ color: '#A0522D', fontSize: '12px' }}>
+                      📂 {task.category}
+                    </span>
+                    <span style={{ color: '#A0522D', fontSize: '12px' }}>
+                      ⏱️ {task.estimatedTime} min
+                    </span>
+                    {task.skills && task.skills.length > 0 && (
+                      <span style={{ color: '#A0522D', fontSize: '12px' }}>
+                        🎯 {task.skills.join(', ')}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Due Date Selector */}
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <label style={{ color: '#8B4513', fontSize: '14px', fontWeight: 'bold' }}>
+                      Due Date:
+                    </label>
+                    <input
+                      type="date"
+                      value={selectedTaskDates[index] || ''}
+                      onChange={(e) =>
+                        setSelectedTaskDates((prev) => ({ ...prev, [index]: e.target.value }))
+                      }
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '2px solid #FFECD1',
+                        fontSize: '14px',
+                        flex: 1
+                      }}
+                    />
+                    <button
+                      onClick={() => scheduleAITask(task, index)}
+                      disabled={!selectedTaskDates[index]}
+                      style={{
+                        background: selectedTaskDates[index]
+                          ? 'linear-gradient(135deg, #8B4513, #D2691E)'
+                          : '#ccc',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        cursor: selectedTaskDates[index] ? 'pointer' : 'not-allowed',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      📅 Add to Calendar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

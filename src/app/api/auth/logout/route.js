@@ -28,5 +28,13 @@ export async function POST(req) {
   out.push(serialize('access', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 }));
   out.push(serialize('refresh', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 0 }));
 
-  return new Response(JSON.stringify({ message: 'Logged out' }), { status: 200, headers: { 'Set-Cookie': out.join(',') } });
+  return new Response(JSON.stringify({ message: 'Logged out' }), { 
+    status: 200, 
+    headers: { 
+      'Set-Cookie': out.join(','),
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    } 
+  });
 }

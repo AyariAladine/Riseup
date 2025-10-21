@@ -46,7 +46,8 @@ export default function SignupPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Signup failed');
 
-  router.push('/auth/login');
+      // Redirect to login page (they'll be redirected to onboarding after login)
+      router.push('/auth/login');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);

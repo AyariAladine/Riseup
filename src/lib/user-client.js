@@ -6,8 +6,8 @@ function ensureGlobals() {
   if (typeof window === 'undefined') return;
   const w = window;
   if (!w.__EMITTER__) {
-    // Try to restore user from storage on first load
-    w.__USER__ = safeStorageGet('app:user');
+    // Don't restore user from storage - always fetch fresh to avoid showing stale data
+    w.__USER__ = null;
     w.__EMITTER__ = new EventTarget();
   }
 }

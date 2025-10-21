@@ -31,7 +31,14 @@ export async function GET(req) {
       if (!user) return new Response(JSON.stringify({ message: 'User not found' }), { status: 404 });
       return new Response(
         JSON.stringify({ user: { id: user._id, email: user.email, name: user.name, avatar: user.avatar || '' } }),
-        { status: 200 }
+        { 
+          status: 200,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        }
       );
     }
 
@@ -70,7 +77,15 @@ export async function GET(req) {
 
     return new Response(
       JSON.stringify({ user: { id: user._id, email: user.email, name: user.name, avatar: user.avatar || '' } }),
-      { status: 200, headers: { 'Set-Cookie': cookiesOut.join(',') } }
+      { 
+        status: 200, 
+        headers: { 
+          'Set-Cookie': cookiesOut.join(','),
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        } 
+      }
     );
   } catch (err) {
     console.error(err);
