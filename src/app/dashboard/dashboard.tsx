@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { setUser as setGlobalUser } from '@/lib/user-client';
+import { signOut } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -31,8 +32,8 @@ export default function DashboardPage() {
         } catch {}
         setGlobalUser(data.user || null);
       } catch {
-        // Clear cookie server-side via logout endpoint and redirect
-        await fetch('/api/auth/logout', { method: 'POST' });
+        // Clear session using better-auth and redirect
+        await signOut();
         router.push('/auth/login');
       } finally {
         setLoading(false);

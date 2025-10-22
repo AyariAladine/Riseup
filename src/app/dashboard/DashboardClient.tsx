@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { setUser as setGlobalUser } from '@/lib/user-client';
+import { signOut } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SurveyModal from '@/components/SurveyModal';
@@ -53,8 +54,8 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
           console.error('Failed to check onboarding status:', err);
         }
       } catch {
-        // Clear cookie server-side via logout endpoint and redirect
-        await fetch('/api/auth/logout', { method: 'POST' });
+        // Clear session using better-auth and redirect
+        await signOut();
         router.push('/auth/login');
       } finally {
         setLoading(false);

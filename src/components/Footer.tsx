@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
 
-
 export default function Footer() {
   const getSystemTheme = () => {
     if (typeof window === 'undefined') return 'dark';
@@ -47,4 +46,5 @@ export default function Footer() {
       </div>
     </footer>
   );
+
 }

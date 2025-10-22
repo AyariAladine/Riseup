@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useUser, setUser as setUserGlobal } from '@/lib/user-client';
+import { signOut } from '@/lib/auth-client';
 import Image from 'next/image';
 
 export default function Header() {
@@ -236,7 +237,7 @@ export default function Header() {
                   </Link>
                   <div className="github-dropdown-divider" />
                   <button onClick={async () => { 
-                    await fetch('/api/auth/logout', { method: 'POST' }); 
+                    await signOut(); 
                     // Clear all caches
                     if ('caches' in window) {
                       const cacheNames = await caches.keys();

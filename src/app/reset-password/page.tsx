@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { resetPassword } from '@/lib/auth-client';
 
 type FormEvent = React.FormEvent<HTMLFormElement>;
 
@@ -18,13 +19,14 @@ function ResetPasswordInner() {
     e.preventDefault();
     setMessage('');
     try {
-      const res = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
+      const result = await resetPassword({
+        newPassword: password,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Reset failed');
+      
+      if (result.error) {
+        throw new Error(result.error.message || 'Reset failed');
+      }
+      
       setMessage('Password reset successful — redirecting to login...');
       setTimeout(() => router.push('/auth/login'), 1500);
     } catch (err) {

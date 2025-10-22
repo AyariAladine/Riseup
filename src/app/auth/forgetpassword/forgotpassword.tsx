@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, FormEvent, useEffect } from 'react';
+import { forgetPassword, checkEmailExists } from '@/lib/auth-client';
 import FormInput from '@/components/FormInput';
 
 export default function ForgotPasswordPage() {
@@ -17,18 +18,19 @@ export default function ForgotPasswordPage() {
     setMessage('');
 
     try {
-      const res = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+      const result = await forgetPassword({
+        email,
+        redirectTo: '/reset-password',
       });
-        const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Error sending reset link');
 
-      setMessage('Check your email for the reset link (dev: check console)');
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setError(msg);
+      if (result.error) {
+        throw new Error(result.error.message || 'Error sending reset link');
+      }
+
+      setMessage('Check your email for the reset link');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -40,10 +42,9 @@ export default function ForgotPasswordPage() {
       setExists(null);
       if (!email) return setExists(null);
       try {
-        const res = await fetch('/api/auth/check-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
-        const data = await res.json();
+        const exists = await checkEmailExists(email);
         if (!mounted) return;
-        setExists(!!data.exists);
+        setExists(exists);
       } catch {
         if (!mounted) return;
         setExists(false);
