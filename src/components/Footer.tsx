@@ -1,10 +1,18 @@
 "use client";
 import { useEffect, useState } from 'react';
 
+
 export default function Footer() {
+  const getSystemTheme = () => {
+    if (typeof window === 'undefined') return 'dark';
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      return 'light';
+    }
+    return 'dark';
+  };
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window === 'undefined') return 'dark';
-    return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark';
+    return (localStorage.getItem('theme') as 'dark' | 'light') || getSystemTheme();
   });
 
   useEffect(() => {
@@ -12,6 +20,19 @@ export default function Footer() {
     document.body.setAttribute('data-theme', theme);
     try { localStorage.setItem('theme', theme); } catch {}
   }, [theme]);
+
+  // Listen for system theme changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(prefers-color-scheme: light)');
+    const handler = () => {
+      if (!localStorage.getItem('theme')) {
+        setTheme(mq.matches ? 'light' : 'dark');
+      }
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   return (
     <footer className="site-footer" style={{ padding: '18px 12px', borderTop: '1px solid rgba(255,255,255,0.04)', marginTop: 32 }}>

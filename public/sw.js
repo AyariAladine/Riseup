@@ -124,24 +124,25 @@ async function networkFirst(request) {
 async function cacheFirst(request) {
   const cache = await caches.open(CACHE_NAME);
   const cachedResponse = await cache.match(request);
-  
+
   if (cachedResponse) {
     // Mettre à jour en arrière-plan si possible
-    fetch(request).then((response) => {
-      if (response.ok) {
-        cache.put(request, response.clone());
-      }
-    }).catch(() => {
-      // Ignorer les erreurs de mise à jour en arrière-plan
-    });
-    
+    if (request.method === 'GET') {
+      fetch(request).then((response) => {
+        if (response.ok) {
+          cache.put(request, response.clone());
+        }
+      }).catch(() => {
+        // Ignorer les erreurs de mise à jour en arrière-plan
+      });
+    }
     return cachedResponse;
   }
-  
+
   // Si pas en cache, récupérer du réseau et mettre en cache
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    if (response.ok && request.method === 'GET') {
       cache.put(request, response.clone());
     }
     return response;
@@ -155,18 +156,23 @@ async function cacheFirst(request) {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  
-  // Ignorer les requêtes non-HTTP/HTTPS
+
+  // Ignore non-HTTP/HTTPS requests
   if (!url.protocol.startsWith('http')) {
     return;
   }
-  
-  // Ignorer les requêtes Chrome extensions, analytics, etc.
+
+  // Ignore Chrome extensions, analytics, etc.
   if (url.origin !== location.origin) {
     return;
   }
-  
-  // Stratégie Network First pour les routes API
+
+  // BYPASS: Never intercept or cache any /api/auth/* requests (NextAuth OAuth fix)
+  if (url.pathname.startsWith('/api/auth/')) {
+    return;
+  }
+
+  // Stratégie Network First pour les autres routes API
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       networkFirst(request).catch(async () => {

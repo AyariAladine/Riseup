@@ -133,7 +133,7 @@ label { color: var(--muted); font-size: 13px; display: block; margin-bottom: 8px
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(13, 17, 23, 0.95);
+  background: color-mix(in srgb, var(--panel) 95%, transparent);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   height: 54px;
@@ -419,7 +419,7 @@ label { color: var(--muted); font-size: 13px; display: block; margin-bottom: 8px
   bottom: 0;
   width: 280px;
   max-width: 80vw;
-  background: var(--panel-2);
+  background: var(--panel);
   border-right: 1px solid var(--border);
   transform: translateX(-100%);
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);

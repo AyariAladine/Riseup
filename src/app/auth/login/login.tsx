@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, FormEvent, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+// Dynamically import AuthExtras so it only renders on the client
+const AuthExtras = dynamic(() => import('@/components/AuthExtras'), { ssr: false });
 import { useRouter } from 'next/navigation';
 import { setUser as setGlobalUser } from '@/lib/user-client';
 import FormInput from '@/components/FormInput';
@@ -12,7 +15,6 @@ export default function LoginPage() {
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [exists, setExists] = useState<boolean | null>(null);
-  // Note: Password input handles show/hide internally
   const router = useRouter();
 
   useEffect(() => {
@@ -44,29 +46,28 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Login failed');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Login failed');
 
-  // Clear all old session/storage data before setting new user
-  try {
-    sessionStorage.clear();
-    // Only clear app-specific localStorage keys, not user preferences like theme
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.startsWith('app:') || key.startsWith('prefetch:') || key.startsWith('cache:'))) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-  } catch {}
+      // Clear all old session/storage data before setting new user
+      try {
+        sessionStorage.clear();
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('app:') || key.startsWith('prefetch:') || key.startsWith('cache:'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+      } catch {}
 
-  // Update global user cache
-  setGlobalUser(data.user || null);
+      // Update global user cache
+      setGlobalUser(data.user || null);
 
-  // Server sets HttpOnly cookie with token. Redirect to dashboard.
-  // Dashboard will show onboarding modal if needed
-  router.push('/dashboard');
+      // Server sets HttpOnly cookie with token. Redirect to dashboard.
+      // Dashboard will show onboarding modal if needed
+      router.push('/dashboard');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
@@ -76,7 +77,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="auth-page">
+    <div className="auth-page" suppressHydrationWarning>
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-header">
@@ -135,6 +136,8 @@ export default function LoginPage() {
               <span className="auth-divider">•</span>
               <a href="/auth/signup" className="auth-link auth-link-primary">Create account</a>
             </div>
+            {/* Client-only extras (social login, etc.) */}
+            <AuthExtras />
           </form>
         </div>
 

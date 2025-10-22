@@ -1,6 +1,0 @@
-<svg width="128" height="128" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="128" fill="#0b0d0f"/>
-  <path d="M256 128L384 384H128L256 128Z" fill="#22c55e"/>
-  <circle cx="256" cy="320" r="32" fill="#fff"/>
-  <text x="256" y="450" font-family="Arial, sans-serif" font-size="80" font-weight="bold" fill="#fff" text-anchor="middle">RU</text>
-</svg>

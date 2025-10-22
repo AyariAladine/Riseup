@@ -6,7 +6,9 @@ import User from '@/models/User';
 import RefreshToken from '@/models/RefreshToken';
 import { serialize } from 'cookie';
 import { rateLimit } from '@/lib/rateLimiter';
+
 import { sendPushToUser } from '@/lib/push';
+import { sendMail } from '@/lib/sendMail';
 
 const ACCESS_SECRET = process.env.JWT_SECRET;
 const REFRESH_EXPIRES_DAYS = 90; // 90 days - stay logged in for 3 months
@@ -72,6 +74,23 @@ export async function POST(req) {
       url: '/dashboard/home',
     });
   } catch {}
+
+  // Best-effort welcome back email
+  try {
+    await sendMail({
+      to: user.email,
+      subject: 'Welcome back to RiseUP!',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Welcome back, ${user.name || 'Friend'}! 👋</h2>
+          <p>We're glad to see you again at <strong>RiseUP</strong>. Dive back in and continue your learning journey!</p>
+          <p style="margin-top: 32px; color: #888; font-size: 13px;">If you did not log in, you can ignore this email.</p>
+        </div>
+      `,
+    });
+  } catch (e) {
+    console.error('Login email error:', e?.message || e);
+  }
 
   return res;
 }

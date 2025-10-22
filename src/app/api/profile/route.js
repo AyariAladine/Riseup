@@ -1,14 +1,16 @@
 import 'server-only';
-import { getUserFromRequest } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import User from '@/models/User';
 import { ProfileUpdateSchema } from '@/features/profile/schemas';
 import bcrypt from 'bcryptjs';
 
+import { getUserFromRequest } from '@/lib/auth';
+
 export async function GET(req) {
   try {
     await connectToDatabase();
     const { user } = await getUserFromRequest(req);
+    if (!user) return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
     return new Response(
       JSON.stringify({
         user: {
@@ -23,7 +25,6 @@ export async function GET(req) {
       { status: 200 }
     );
   } catch (err) {
-    console.error(err);
     return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
   }
 }

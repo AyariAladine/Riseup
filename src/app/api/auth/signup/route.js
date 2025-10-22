@@ -1,7 +1,9 @@
 import bcrypt from 'bcryptjs';
 import { connectToDatabase } from '@/lib/mongodb';
 import User from '@/models/User';
+
 import { sendPushToUser } from '@/lib/push';
+import { sendMail } from '@/lib/sendMail';
 
 export async function POST(req) {
   const { name, email, password } = await req.json();
@@ -27,6 +29,23 @@ export async function POST(req) {
       url: '/dashboard/home',
     });
   } catch {}
+
+  // Fire a welcome email (best-effort)
+  try {
+    await sendMail({
+      to: newUser.email,
+      subject: 'Welcome to RiseUP! 🎉',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Congratulations, ${newUser.name || 'there'}! 🎉</h2>
+          <p>Welcome to <strong>RiseUP</strong>. Your account is ready and you can start exploring all our features.</p>
+          <p style="margin-top: 32px; color: #888; font-size: 13px;">If you did not sign up, you can ignore this email.</p>
+        </div>
+      `,
+    });
+  } catch (e) {
+    console.error('Signup email error:', e?.message || e);
+  }
 
   return new Response(JSON.stringify({ message: 'User created', user: { id: newUser._id, email: newUser.email, name: newUser.name } }), { status: 201 });
 }
