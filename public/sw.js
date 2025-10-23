@@ -3,35 +3,37 @@
 
 const CACHE_VERSION = 'v3';
 const CACHE_NAME = `riseup-pwa-${CACHE_VERSION}`;
-const OFFLINE_URL = '/offline';
+const OFFLINE_URL = '/offline.html';
 
 // Assets critiques à mettre en cache immédiatement (uniquement statiques)
 const CRITICAL_ASSETS = [
   '/offline',
   '/manifest.webmanifest',
   '/icon.svg',
+  '/', // Cache homepage
+  '/dashboard/profile',
+  '/learn',
+  '/learn/',
+  '/dashboard/assistant',
+  '/dashboard/assistant/',
 ];
 
-// Routes API à gérer avec Network First strategy
-const API_ROUTES = [
-  '/api/dashboard',
-  '/api/tasks',
-  '/api/profile',
-  '/api/learn/chat',
-  '/api/assistant/analyze',
-];
+
+// Session API route (adjust if your session endpoint is different)
+const SESSION_API = '/api/auth/session';
 
 // Installation du Service Worker - Mise en cache des assets critiques
 self.addEventListener('install', (event) => {
   console.log('[SW] Installation...');
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Mise en cache des assets critiques');
-      return cache.addAll(CRITICAL_ASSETS).catch((err) => {
+    caches.open(CACHE_NAME).then(async (cache) => {
+      console.log('[SW] Mise en cache des assets critiques:', CRITICAL_ASSETS);
+      try {
+        await cache.addAll(CRITICAL_ASSETS);
+        console.log('[SW] Tous les assets critiques ont été mis en cache');
+      } catch (err) {
         console.warn('[SW] Échec de mise en cache de certains assets:', err);
-        // Continue même si certains assets échouent
-        return Promise.resolve();
-      });
+      }
     }).then(() => {
       console.log('[SW] Installation terminée');
       return self.skipWaiting(); // Active immédiatement le nouveau SW
@@ -152,6 +154,7 @@ async function cacheFirst(request) {
   }
 }
 
+
 // Intercepter toutes les requêtes
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -167,8 +170,34 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // BYPASS: Never intercept or cache any /api/auth/* requests (NextAuth OAuth fix)
-  if (url.pathname.startsWith('/api/auth/')) {
+  // BYPASS: Never intercept or cache any /api/auth/* requests except session
+  if (url.pathname.startsWith('/api/auth/') && url.pathname !== SESSION_API) {
+    return;
+  }
+
+  // Special: Cache session API for offline login
+  if (url.pathname === SESSION_API) {
+    event.respondWith(
+      (async () => {
+        try {
+          const response = await fetch(request);
+          if (response.ok) {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(request, response.clone());
+          }
+          return response;
+        } catch {
+          // Offline: serve cached session if available
+          const cache = await caches.open(CACHE_NAME);
+          const cached = await cache.match(request);
+          if (cached) return cached;
+          return new Response(JSON.stringify({ error: 'Offline and no session cached' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      })()
+    );
     return;
   }
 
@@ -192,23 +221,34 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  
-  // Stratégie Network First pour les pages HTML dynamiques
+
+  // Stratégie Network First + Cache pour les pages HTML dynamiques (offline navigation)
   if (request.mode === 'navigate') {
     event.respondWith(
-      networkFirst(request).catch(async () => {
-        // Fallback sur la page offline
+      (async () => {
         const cache = await caches.open(CACHE_NAME);
-        const offlineResponse = await cache.match(OFFLINE_URL);
-        return offlineResponse || new Response('Offline - Page non disponible', {
-          status: 503,
-          statusText: 'Service Unavailable'
-        });
-      })
+        try {
+          const response = await fetch(request);
+          if (response.ok) {
+            cache.put(request, response.clone());
+          }
+          return response;
+        } catch {
+          // Offline: serve cached page if available
+          const cached = await cache.match(request);
+          if (cached) return cached;
+          // Fallback sur la page offline
+          const offlineResponse = await cache.match(OFFLINE_URL);
+          return offlineResponse || new Response('Offline - Page non disponible', {
+            status: 503,
+            statusText: 'Service Unavailable'
+          });
+        }
+      })()
     );
     return;
   }
-  
+
   // Stratégie Cache First pour tous les autres assets (JS, CSS, images, fonts)
   event.respondWith(
     cacheFirst(request).catch(() => {

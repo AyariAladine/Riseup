@@ -40,6 +40,12 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
         const data = await res.json();
         setUser(data.user);
         setGlobalUser(data.user || null);
+        // Trigger welcome/login email after login
+        try {
+          await fetch('/api/after-login', { method: 'POST', credentials: 'include' });
+        } catch (e) {
+          console.warn('Failed to trigger after-login email:', e);
+        }
 
         // Check onboarding status but do not auto-show modal.
         // Instead show a 'Take questionnaire' button in header if not completed.

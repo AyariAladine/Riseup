@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getUserFromRequest } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
-import User from '@/models/User';
+
 
 export const dynamic = 'force-dynamic';
 
@@ -24,27 +24,32 @@ export async function POST(req) {
     }
 
     // Ensure customer exists
-    let dbUser = await User.findById(user._id);
-    if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    if (!dbUser.stripeCustomerId) {
+    // Use the extended user object from Better Auth
+    let stripeCustomerId = user.stripeCustomerId;
+    if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
-        email: dbUser.email,
-        name: dbUser.name,
-        metadata: { userId: dbUser._id.toString() },
+        email: user.email,
+        name: user.name,
+        metadata: { userId: user._id?.toString?.() || user.id },
       });
-      dbUser.stripeCustomerId = customer.id;
-      await dbUser.save();
+      stripeCustomerId = customer.id;
+      // Update the user in MongoDB directly
+      const usersCollection = (await connectToDatabase()).collection('users');
+      await usersCollection.updateOne(
+        { email: user.email },
+        { $set: { stripeCustomerId } }
+      );
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      customer: dbUser.stripeCustomerId,
+      customer: stripeCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
       allow_promotion_codes: true,
       success_url: `${baseUrl}/dashboard/premium?success=1`,
       cancel_url: `${baseUrl}/dashboard/premium?canceled=1`,
-      metadata: { userId: dbUser._id.toString() },
+      metadata: { userId: user._id?.toString?.() || user.id },
     });
     return NextResponse.json({ url: session.url });
   } catch (e) {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { connectToDatabase } from '@/lib/mongodb';
-import User from '@/models/User';
+
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -25,13 +25,17 @@ export async function POST(req) {
 
   try {
     await connectToDatabase();
+    const db = await connectToDatabase();
+    const usersCollection = db.collection('users');
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
         const customerId = session.customer;
         if (customerId) {
-          const user = await User.findOne({ stripeCustomerId: customerId });
-          if (user) { user.isPremium = true; await user.save(); }
+          await usersCollection.updateOne(
+            { stripeCustomerId: customerId },
+            { $set: { isPremium: true } }
+          );
         }
         break;
       }
@@ -40,15 +44,19 @@ export async function POST(req) {
         const sub = event.data.object;
         const customerId = sub.customer;
         const active = sub.status === 'active' || sub.status === 'trialing' || sub.status === 'past_due';
-        const user = await User.findOne({ stripeCustomerId: customerId });
-        if (user) { user.isPremium = !!active; await user.save(); }
+        await usersCollection.updateOne(
+          { stripeCustomerId: customerId },
+          { $set: { isPremium: !!active } }
+        );
         break;
       }
       case 'customer.subscription.deleted': {
         const sub = event.data.object;
         const customerId = sub.customer;
-        const user = await User.findOne({ stripeCustomerId: customerId });
-        if (user) { user.isPremium = false; await user.save(); }
+        await usersCollection.updateOne(
+          { stripeCustomerId: customerId },
+          { $set: { isPremium: false } }
+        );
         break;
       }
       default:

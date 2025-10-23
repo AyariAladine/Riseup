@@ -1,6 +1,15 @@
 ﻿"use client";
 
+
 import { useEffect, useRef, useState } from 'react';
+type Task = {
+  _id: string;
+  title: string;
+  description?: string;
+  difficulty?: string;
+  dueAt?: string | Date;
+  completed?: boolean;
+};
 
 type ChatMsg = { role: 'user' | 'assistant' | 'system'; content: string };
 type Conversation = { id: string; title: string; messageCount: number; lastMessage: string; updatedAt: string };
@@ -9,6 +18,57 @@ export default function ChallengeBotPage() {
   const [messages, setMessages] = useState<ChatMsg[]>([
     { role: 'assistant', content: 'Describe your challenge, attach a screenshot or solution file, then click Send. I will grade it.' },
   ]);
+  const [focusTask, setFocusTask] = useState<Task | null>(null);
+  const [askFocus, setAskFocus] = useState(false);
+  // On mount, check for task in query
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const taskParam = params.get('task');
+      if (taskParam) {
+        try {
+          const task: Task = JSON.parse(decodeURIComponent(taskParam));
+          setFocusTask(task);
+          setAskFocus(true);
+        } catch {}
+      }
+    }
+  }, []);
+
+  async function handleFocusTask(yes: boolean) {
+    setAskFocus(false);
+    if (yes && focusTask) {
+      // Send a user message to the chatbot to focus on the task
+      const userMsg: ChatMsg = {
+        role: 'user',
+        content: `Please help me focus on this challenge: ${focusTask.title}${focusTask.description ? ' - ' + focusTask.description : ''}`
+      };
+      setMessages(prev => [...prev, userMsg]);
+      setBusy(true);
+      try {
+        const fd = new FormData();
+        fd.append('message', userMsg.content);
+        const res = await fetch('/api/assistant/analyze', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        const parts: string[] = [];
+        if (data.analysis) parts.push(data.analysis);
+        if (typeof data.score === 'number') parts.push(`Score: ${data.score}/100`);
+        if (typeof data.passed === 'boolean') parts.push(data.passed ? 'Result: Pass (check)' : 'Result: Fail (x)');
+        if (data.hints?.length) parts.push('Hints:\n- ' + data.hints.join('\n- '));
+        if (data.source) {
+          const label = data.source === 'gemini' ? 'Gemini' : data.source === 'groq' ? 'Groq' : 'Heuristic';
+          parts.push(`Grader: ${label}`);
+        }
+        setMessages(prev => [...prev, { role: 'assistant', content: parts.join('\n\n') || 'Processed.' }]);
+      } catch (e: unknown) {
+        const msg = (e as Error)?.message || 'Something went wrong';
+        setMessages(prev => [...prev, { role: 'assistant', content: `error: ${msg}` }]);
+      } finally {
+        setBusy(false);
+      }
+    }
+  }
   const [input, setInput] = useState('');
   const [upload, setUpload] = useState<File | null>(null);
   const [image, setImage] = useState<File | null>(null);
@@ -157,6 +217,17 @@ export default function ChallengeBotPage() {
 
   return (
     <div className="github-container">
+      {askFocus && focusTask && (
+        <div style={{ background: '#f1f5f9', padding: 16, borderRadius: 8, margin: 24, maxWidth: 600, marginLeft: 'auto', marginRight: 'auto' }}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Do you want to focus on this challenge?</div>
+          <div style={{ marginBottom: 8 }}>
+            <strong>{focusTask.title}</strong>
+            <div style={{ color: '#64748b', fontSize: 15 }}>{focusTask.description}</div>
+          </div>
+          <button onClick={() => handleFocusTask(true)} style={{ marginRight: 10, background: '#6366f1', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 18px', fontWeight: 600 }}>Yes</button>
+          <button onClick={() => handleFocusTask(false)} style={{ background: '#e5e7eb', color: '#334155', border: 'none', borderRadius: 6, padding: '6px 18px', fontWeight: 600 }}>No</button>
+        </div>
+      )}
       <style>{`
         @media (max-width: 768px) {
           .assistant-layout { flex-direction: column !important; }

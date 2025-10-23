@@ -1,50 +1,33 @@
 "use client";
 import { useEffect, useState } from 'react';
+
 import { setUser as setUserGlobal } from '@/lib/user-client';
 import { showNotification } from '@/components/NotificationProvider';
+import { useProfile } from '@/lib/useProfile';
 
 type Profile = { user: { name: string; email: string; isPremium?: boolean } };
 
 export default function PremiumPage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { profile, mutate: mutateProfile, isLoading } = useProfile();
   const [error, setError] = useState('');
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        // Check if returning from successful checkout
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('success') === '1') {
-          // Activate premium immediately after successful payment
+    // Check if returning from successful checkout
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success') === '1') {
+      (async () => {
+        try {
           await fetch('/api/profile/upgrade', { method: 'POST', credentials: 'include' });
+          await mutateProfile(); // Refresh profile immediately
           // Remove success parameter from URL
           window.history.replaceState({}, '', '/dashboard/premium');
           showNotification('Congratulations! Welcome to VIP!', 'success', 'Premium Activated');
+        } catch (e) {
+          setError((e as Error)?.message || String(e));
         }
-        
-        const res = await fetch('/api/profile', { credentials: 'include' });
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(txt || 'Failed to load');
-        }
-        const data = await res.json() as Profile;
-        if (mounted) {
-          setProfile(data);
-          // Update global user context so Header shows logged in state
-          if (data.user) {
-            setUserGlobal(data.user);
-          }
-        }
-      } catch (e: unknown) {
-        if (mounted) setError((e as Error)?.message || String(e));
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
+      })();
+    }
+  }, [mutateProfile]);
 
   async function upgrade() {
     try {
@@ -75,7 +58,7 @@ export default function PremiumPage() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="github-container">
         <div className="github-loading">
@@ -86,7 +69,7 @@ export default function PremiumPage() {
     );
   }
 
-  const isPremium = !!profile?.user?.isPremium;
+  const isPremium = !!profile?.isPremium;
   
   return (
     <div className="github-container">

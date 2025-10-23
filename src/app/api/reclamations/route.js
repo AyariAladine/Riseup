@@ -3,7 +3,6 @@ import { getUserFromRequest } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import Reclamation from '@/models/Reclamation';
 import nodemailer from 'nodemailer';
-import User from '@/models/User';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,9 +62,6 @@ export async function POST(req) {
     // Send email notification to owner
     try {
       if (process.env.GMAIL_USER && process.env.GMAIL_PASS && process.env.OWNER_EMAIL) {
-        // Get full user details including email
-        const userDetails = await User.findById(user._id).lean();
-        
         const transporter = nodemailer.createTransport({
           service: 'gmail',
           auth: {
@@ -123,9 +119,9 @@ export async function POST(req) {
 
                 <div style="margin: 20px 0; padding: 15px; background: #fff8e1; border-radius: 6px; border-left: 4px solid #ff9800;">
                   <h4 style="color: #24292f; margin: 0 0 10px 0;">👤 Submitted by:</h4>
-                  <p style="margin: 5px 0;"><strong>Name:</strong> ${userDetails?.name || 'Unknown'}</p>
-                  <p style="margin: 5px 0;"><strong>Email:</strong> <a href="mailto:${userDetails?.email}" style="color: #1f6feb;">${userDetails?.email || 'N/A'}</a></p>
-                  <p style="margin: 5px 0;"><strong>Premium:</strong> ${userDetails?.isPremium ? '⭐ Yes' : '❌ No'}</p>
+                  <p style="margin: 5px 0;"><strong>Name:</strong> ${user?.name || 'Unknown'}</p>
+                  <p style="margin: 5px 0;"><strong>Email:</strong> <a href="mailto:${user?.email}" style="color: #1f6feb;">${user?.email || 'N/A'}</a></p>
+                  <p style="margin: 5px 0;"><strong>Premium:</strong> ${user?.isPremium ? '⭐ Yes' : '❌ No'}</p>
                 </div>
 
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e1e4e8; text-align: center;">

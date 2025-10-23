@@ -326,22 +326,24 @@ export default function DashboardCalendar() {
                 const top = minutes; // 1px per minute
                 const height = 40; // fixed height (no duration in model)
                 return (
-                  <div key={t._id} className="card" style={{ position: "absolute", top, left: 0, right: 0, height, padding: 6, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, fontSize: '0.875rem' }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
-                      <input
-                        type="checkbox"
-                        checked={!!t.completed}
-                        onChange={() => toggleComplete(t._id, !!t.completed)}
-                        aria-label="Toggle complete"
-                        style={{ flexShrink: 0 }}
-                      />
-                      <div style={{ textDecoration: t.completed ? "line-through" : "none", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
+                  <a key={t._id} href={`/dashboard/calendar/task/${t._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <div className="card" style={{ position: "absolute", top, left: 0, right: 0, height, padding: 6, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, fontSize: '0.875rem', cursor: 'pointer' }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
+                        <input
+                          type="checkbox"
+                          checked={!!t.completed}
+                          onChange={e => { e.stopPropagation(); e.preventDefault(); toggleComplete(t._id, !!t.completed); }}
+                          aria-label="Toggle complete"
+                          style={{ flexShrink: 0 }}
+                        />
+                        <div style={{ textDecoration: t.completed ? "line-through" : "none", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                        <div className="muted small" style={{ fontSize: '0.75rem' }}>{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                        <button className="btn btn-ghost small" onClick={e => { e.stopPropagation(); e.preventDefault(); deleteTask(t._id); }} style={{ padding: '4px 8px', fontSize: '0.75rem' }}>Del</button>
+                      </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                      <div className="muted small" style={{ fontSize: '0.75rem' }}>{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                      <button className="btn btn-ghost small" onClick={() => deleteTask(t._id)} style={{ padding: '4px 8px', fontSize: '0.75rem' }}>Del</button>
-                    </div>
-                  </div>
+                  </a>
                 );
               })}
             </div>
@@ -399,13 +401,15 @@ export default function DashboardCalendar() {
                           const top = minutes;
                           const height = 40;
                           return (
-                            <div key={t._id} className="card" style={{ position: 'absolute', top, left: 0, right: 0, height, padding: 4, display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.7rem', overflow: 'hidden' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                                <input type="checkbox" checked={!!t.completed} onChange={() => toggleComplete(t._id, !!t.completed)} aria-label="Toggle complete" style={{ flexShrink: 0, transform: 'scale(0.85)' }} />
-                                <div style={{ textDecoration: t.completed ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.title}</div>
+                            <a key={t._id} href={`/dashboard/calendar/task/${t._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                              <div className="card" style={{ position: 'absolute', top, left: 0, right: 0, height, padding: 4, display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.7rem', overflow: 'hidden', cursor: 'pointer' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                                  <input type="checkbox" checked={!!t.completed} onChange={e => { e.stopPropagation(); e.preventDefault(); toggleComplete(t._id, !!t.completed); }} aria-label="Toggle complete" style={{ flexShrink: 0, transform: 'scale(0.85)' }} />
+                                  <div style={{ textDecoration: t.completed ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.title}</div>
+                                </div>
+                                <div className="muted small" style={{ fontSize: '0.65rem', paddingLeft: '18px' }}>{dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                               </div>
-                              <div className="muted small" style={{ fontSize: '0.65rem', paddingLeft: '18px' }}>{dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                            </div>
+                            </a>
                           );
                         })}
                       </div>

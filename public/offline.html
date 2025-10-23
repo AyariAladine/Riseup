@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline - RiseUP</title>
+  <style>
+    body {
+      background: #18181b;
+      color: #f1f5f9;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .offline-container {
+      background: #23232a;
+      border-radius: 16px;
+      padding: 32px 24px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.12);
+      max-width: 400px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 12px;
+    }
+    p {
+      font-size: 1.1rem;
+      margin-bottom: 18px;
+    }
+    button {
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+    button:active {
+      background: #4338ca;
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <h1>Offline Mode</h1>
+    <p>You are currently offline.<br>
+    Pages you have visited before should be available.<br>
+    Please check your connection or try again later.</p>
+    <button onclick="location.reload()">Try Again</button>
+  </div>
+</body>
+</html>
