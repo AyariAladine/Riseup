@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
     // Prefer the default but keep placeholder in case we want other flags
+    turbopack: {
+      root: __dirname,
+    },
   },
   images: {
     formats: ['image/avif', 'image/webp'],
