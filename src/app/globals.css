@@ -61,13 +61,19 @@ body {
   background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent), var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 18px;
+  padding-top: 18px;
+  padding-right: 18px;
+  padding-bottom: 18px;
+  padding-left: 18px;
   box-shadow: 0 8px 20px rgba(2,6,23,0.55);
 }
 
 .card {
   background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent), var(--panel-2);
-  padding: 18px;
+  padding-top: 18px;
+  padding-right: 18px;
+  padding-bottom: 18px;
+  padding-left: 18px;
   border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.02);
 }
@@ -767,7 +773,10 @@ body[data-drawer='open'] .github-backdrop {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 20px;
+  padding-top: 20px;
+  padding-right: 20px;
+  padding-bottom: 20px;
+  padding-left: 20px;
   transition: all 0.15s ease;
 }
 
@@ -1313,4 +1322,12 @@ a { color: var(--accent); }
 .dropdown-item { display:block; padding:8px 10px; border-radius:8px; color:var(--fg); text-decoration:none; }
 .dropdown-item:hover { background:rgba(255,255,255,0.02); }
 .dropdown-divider { height:1px; background:var(--border); margin:6px 0; border-radius:2px; }
+
+@keyframes modalpop {
+  from { transform: scale(.85) translateY(36px); opacity:0 }
+  to { transform: scale(1) translateY(0); opacity:1 }
+}
+.modalCardAnim {
+  animation: modalpop 0.35s cubic-bezier(.23,1.01,.59,.92);
+}
 

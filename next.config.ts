@@ -1,12 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   experimental: {
-    // Prefer the default but keep placeholder in case we want other flags
-    turbopack: {
-      root: __dirname,
-    },
+    // other experimental flags can go here, but NO turbopack
   },
   images: {
     formats: ['image/avif', 'image/webp'],

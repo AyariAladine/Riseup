@@ -100,7 +100,7 @@ export default function PremiumPage() {
         </div>
       )}
 
-      <div className="github-card">
+      <div className="github-card" style={{paddingTop:18,paddingRight:18,paddingBottom:18,paddingLeft:18}}>
         {isPremium ? (
           <>
             <div style={{ 

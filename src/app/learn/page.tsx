@@ -194,7 +194,7 @@ export default function LearnPage() {
         {/* Conversations Sidebar */}
         {mounted && showSidebar && (
           <div className="learn-sidebar" style={{ width: 280, flexShrink: 0 }}>
-            <div className="github-card" style={{ padding: 12 }}>
+            <div className="github-card" style={{paddingTop:12,paddingRight:12,paddingBottom:12,paddingLeft:12}}>
               <button className="github-btn github-btn-primary" onClick={createNewConversation} style={{ width: '100%', marginBottom: 12 }}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: 6 }}>
                   <path d="M7.75 2a.75.75 0 01.75.75V7h4.25a.75.75 0 010 1.5H8.5v4.25a.75.75 0 01-1.5 0V8.5H2.75a.75.75 0 010-1.5H7V2.75A.75.75 0 017.75 2z"/>
@@ -251,7 +251,7 @@ export default function LearnPage() {
 
         {/* Main Chat Area */}
         <div className="learn-main" style={{ flex: 1 }}>
-          <div className="github-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="github-card" style={{paddingTop:0,paddingRight:0,paddingBottom:0,paddingLeft:0,overflow:'hidden'}}>
             <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', background: 'var(--panel-2)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

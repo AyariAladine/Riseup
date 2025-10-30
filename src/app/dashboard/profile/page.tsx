@@ -51,6 +51,14 @@ export default function DashboardProfile() {
   const [submittingReclamation, setSubmittingReclamation] = useState(false);
   const [editingReclamationId, setEditingReclamationId] = useState<string | null>(null);
 
+  // Learning profile state
+  const [learningProfile, setLearningProfile] = useState<any | null>(null);
+  const [learningProfileEdit, setLearningProfileEdit] = useState(false);
+  const [lpMessage, setLPMessage] = useState('');
+  const [lpSaving, setLPSaving] = useState(false);
+
+  const PROGRAMMING_LANGUAGES = ["JavaScript", "Python", "Java", "C++", "C#", "Ruby", "Go", "Rust", "Swift", "Kotlin", "TypeScript", "PHP", "Dart", "Scala", "R"];
+
   // Update local state when cached profile data changes
   useEffect(() => {
     if (profile) {
@@ -70,6 +78,50 @@ export default function DashboardProfile() {
       setReclamations(cachedReclamations);
     }
   }, [cachedReclamations]);
+
+  useEffect(() => {
+    // fetch learning profile once
+    async function fetchProfile() {
+      setLPMessage('');
+      try {
+        const res = await fetch('/api/onboarding', { method:'GET', credentials:'include' });
+        if (!res.ok) throw new Error('Failed to fetch learning profile');
+        const data = await res.json();
+        setLearningProfile(data.profile || null);
+      } catch (e) {
+        setLearningProfile(null);
+        setLPMessage('Could not load learning profile.');
+      }
+    }
+    fetchProfile();
+  }, []);
+
+  // Editable form state mirrors LP fields
+  const [lpFields, setLPFields] = useState<any|null>(null);
+  useEffect(() => {
+    if (learningProfile) setLPFields({ ...learningProfile });
+  }, [learningProfile]);
+
+  function lpField(name:string, val:any) {
+    setLPFields((prev:any) => ({ ...(prev||{}), [name]: val }));
+  }
+
+  async function saveLearningProfile(e:React.FormEvent) {
+    e.preventDefault(); setLPSaving(true); setLPMessage('');
+    try {
+      const res = await fetch('/api/onboarding', {
+        method:'PATCH', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify(lpFields)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error||'Update failed');
+      setLearningProfile(data.profile);
+      showNotification('Learning profile updated successfully!','success');
+      setLPMessage('Learning profile updated!');
+      setLearningProfileEdit(false);
+    } catch (e:any) {
+      setLPMessage(e.message||'Could not update profile');
+    } finally { setLPSaving(false); }
+  }
 
   async function requestPasswordChange() {
     if (!password) {
@@ -432,8 +484,10 @@ export default function DashboardProfile() {
             border: '2px solid rgba(234, 179, 8, 0.2)',
             background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)',
             boxShadow: '0 8px 24px rgba(234, 179, 8, 0.1)',
-            padding: '18px'
-          } : { padding: '18px' }}>
+            paddingTop: 18, paddingRight: 18, paddingBottom: 18, paddingLeft: 18
+          } : {
+            paddingTop: 18, paddingRight: 18, paddingBottom: 18, paddingLeft: 18
+          }}>
             <h2 style={{ marginTop: 0, fontSize: '17px', marginBottom: '14px' }}>Personal Information</h2>
             
           {isPremium ? (
@@ -648,10 +702,113 @@ export default function DashboardProfile() {
             </label>
             <button className="github-btn" type="submit" disabled={!newEmail}>Send confirmation</button>
           </form>
+
+          {/* Learning Profile Edit Section: wrapper must be static and padding style must be longhand to match SSR/CSR */}
+          <div className="github-card" style={{paddingTop: 18, paddingRight: 18, paddingBottom: 18, paddingLeft: 18, minHeight: 200}}>
+            {/* Inner header row (edit/cancel/add buttons) */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent:'space-between', marginBottom:8 }}>
+              <h2 style={{margin:0,fontSize:'17px'}}>Learning Profile</h2>
+              {learningProfile && !learningProfileEdit && (
+                <button className="github-btn" onClick={()=>{ setLearningProfileEdit(true); setLPMessage(''); setLPFields({...learningProfile}) }}>Edit</button>
+              )}
+              {learningProfileEdit && (
+                <button className="github-btn" onClick={()=>{ setLearningProfileEdit(false); setLPMessage(''); setLPFields(learningProfile ? {...learningProfile} : null)}}>Cancel</button>
+              )}
+            </div>
+            {lpMessage && <div style={{marginBottom:10, background:'#e6fcf5', color:'#14853b', padding:'5px 12px', borderRadius:7, fontSize:13}}>{lpMessage}</div>}
+            {lpSaving ? (<div style={{textAlign:'center',color:'#2563eb',fontWeight:600,margin:'42px 0'}}>Saving…</div>) : (
+              (!learningProfile && !learningProfileEdit)
+                ? (
+                  <div style={{textAlign:'center',padding:'32px 0'}}>
+                    <div className="small muted" style={{marginBottom:10}}>You have not set up your learning profile yet.</div>
+                    <button onClick={() => { setLearningProfileEdit(true); setLPFields({}); }} className="github-btn github-btn-primary">Add Learning Profile</button>
+                  </div>
+                ) : (
+                  learningProfileEdit
+                  ? (<form onSubmit={saveLearningProfile} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+                      <label><div className="small muted">Experience</div>
+                        <select value={lpFields?.codingExperience||''} disabled style={{background:'#eef1f5'}}>
+                          <option value="new">New</option><option value="intermediate">Intermediate</option><option value="expert">Expert</option>
+                        </select>
+                      </label>
+                      <label><div className="small muted">Skill Level</div>
+                        <input required type="number" min={1} max={10} value={lpFields?.skillLevel||1} disabled style={{background:'#eef1f5'}} />
+                      </label>
+                      <label><div className="small muted">Hours/week</div><input required type="number" min={1} max={99} value={lpFields?.hoursPerWeek||''} onChange={e=>lpField('hoursPerWeek',e.target.value)} /></label>
+                      <label><div className="small muted">Motivation</div><select value={lpFields?.motivation||'medium'} onChange={e=>lpField('motivation',e.target.value)}><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
+                      <label><div className="small muted">Activity Level</div><select value={lpFields?.activityLevel||''} onChange={e=>lpField('activityLevel',e.target.value)}><option value="">Select</option><option value="very_active">Very Active</option><option value="active">Active</option><option value="somewhat_active">Somewhat Active</option><option value="inactive">Inactive</option></select></label>
+                      <label><div className="small muted">Age</div><input type="number" min={10} max={100} value={lpFields?.age||''} onChange={e=>lpField('age',e.target.value)} required/></label>
+                      <label><div className="small muted">Years Coding</div><input type="number" min={0} max={80} value={lpFields?.yearsOfCoding||''} onChange={e=>lpField('yearsOfCoding',e.target.value)} required/></label>
+                      <label><div className="small muted">Projects Completed</div><input type="number" min={0} max={500} value={lpFields?.projectsCompleted||''} onChange={e=>lpField('projectsCompleted',e.target.value)} required/></label>
+                      <label><div className="small muted">Willingness</div><select value={lpFields?.willingToLearn||''} onChange={e=>lpField('willingToLearn',e.target.value)}><option value="very_willing">Very Willing</option><option value="somewhat_willing">Somewhat Willing</option><option value="not_willing">Not Willing</option></select></label>
+                      <label><div className="small muted">Commitment</div><select value={lpFields?.commitmentLevel||''} onChange={e=>lpField('commitmentLevel',e.target.value)}><option value="very_committed">Very Committed</option><option value="committed">Committed</option><option value="somewhat_committed">Somewhat Committed</option><option value="exploring">Exploring</option></select></label>
+                      <div style={{gridColumn:'1/3'}}>
+                        <div className="small muted" style={{marginBottom:4}}>Languages to Learn <span style={{fontWeight:400,fontSize:12}}>(select one or more)</span></div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:4}}>
+                          {PROGRAMMING_LANGUAGES.map((lang: string) => (
+                            <label key={lang} style={{fontWeight:500,fontSize:13,background:lpFields?.languagesToLearn?.includes(lang)?'#dbeafe':'#f3f4f6',padding:'5px 10px',borderRadius:6,display:'flex',alignItems:'center',gap:6,cursor:'pointer'}}>
+                              <input
+                                type="checkbox"
+                                checked={Array.isArray(lpFields?.languagesToLearn) && lpFields.languagesToLearn.includes(lang)}
+                                onChange={e=>{
+                                  let arr = Array.isArray(lpFields?.languagesToLearn)?[...lpFields.languagesToLearn]:[];
+                                  if(e.target.checked && !arr.includes(lang)) arr.push(lang);
+                                  if(!e.target.checked) arr = arr.filter(l=>l!==lang);
+                                  lpField('languagesToLearn', arr);
+                                  if(!e.target.checked && lpFields?.primaryLanguageInterest===lang) lpField('primaryLanguageInterest','');
+                                }}
+                                style={{marginRight:2}}
+                              /> {lang}
+                            </label>
+                          ))}
+                          {Array.isArray(lpFields?.languagesToLearn) && lpFields.languagesToLearn.filter((l: string) => !PROGRAMMING_LANGUAGES.includes(l)).map((lang: string) => (
+                            <label key={lang} style={{fontWeight:500,fontSize:13,background:'#fffbe7',padding:'5px 10px',borderRadius:6,display:'flex',alignItems:'center',gap:6,cursor:'pointer'}}>
+                              <input type="checkbox" checked={true} onChange={e=>{
+                                let arr = Array.isArray(lpFields?.languagesToLearn)?[...lpFields.languagesToLearn]:[];
+                                arr = arr.filter((l: string) => l!==lang);
+                                lpField('languagesToLearn', arr);
+                                if(lpFields?.primaryLanguageInterest===lang) lpField('primaryLanguageInterest','');
+                              }} style={{marginRight:2}}/> {lang} <span style={{fontSize:11,marginLeft:3,opacity:.7}}>(custom)</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <label style={{gridColumn:'1/3'}}>
+                        <div className="small muted">Primary Language Interest</div>
+                        <select required value={lpFields?.primaryLanguageInterest||''} onChange={e=>lpField('primaryLanguageInterest',e.target.value)}>
+                          <option value="">Select...</option>
+                          {(Array.isArray(lpFields?.languagesToLearn) && lpFields.languagesToLearn.length>0
+                            ? lpFields.languagesToLearn
+                            : PROGRAMMING_LANGUAGES).map((lang: string) => (
+                            <option key={lang} value={lang}>{lang}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <button className="github-btn github-btn-primary" type="submit" disabled={lpSaving} style={{gridColumn:'1/-1',marginTop:8}}>{lpSaving?'Saving…':(!learningProfile?'Add Profile':'Save changes')}</button>
+                    </form>)
+                  : (
+                    <ul style={{margin:0, padding:0, listStyle:'none', color:'#334155', fontSize:'15px'}}>
+                      <li><b>Experience:</b> {learningProfile.codingExperience}</li>
+                      <li><b>Skill Level:</b> {learningProfile.skillLevel}</li>
+                      <li><b>Hours/week:</b> {learningProfile.hoursPerWeek}</li>
+                      <li><b>Motivation:</b> {learningProfile.motivation}</li>
+                      <li><b>Activity Level:</b> {learningProfile.activityLevel}</li>
+                      <li><b>Age:</b> {learningProfile.age}</li>
+                      <li><b>Years Coding:</b> {learningProfile.yearsOfCoding}</li>
+                      <li><b>Projects Completed:</b> {learningProfile.projectsCompleted}</li>
+                      <li><b>Willingness:</b> {learningProfile.willingToLearn}</li>
+                      <li><b>Commitment:</b> {learningProfile.commitmentLevel}</li>
+                      <li><b>Languages to Learn:</b> {Array.isArray(learningProfile.languagesToLearn)? learningProfile.languagesToLearn.join(', ') : ''}</li>
+                      <li><b>Primary Language Interest:</b> {learningProfile.primaryLanguageInterest||''}</li>
+                    </ul>
+                  )
+                )
+            )}
+          </div>
         </div>
 
         {/* Reclamations Section */}
-        <div className="github-card" style={{ padding: '20px' }}>
+        <div className="github-card" style={{paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20}}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
               <h2 style={{ margin: 0, fontSize: '18px' }}>Reclamations</h2>
@@ -847,7 +1004,7 @@ export default function DashboardProfile() {
 
         {/* Right Column - Achievements & NFTs Placeholder */}
         <div>
-          <div className="github-card" style={{ padding: '20px', minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
+          <div className="github-card" style={{ paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
             <div style={{ textAlign: 'center' }}>
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ margin: '0 auto 12px', opacity: 0.3 }}>
                 <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />

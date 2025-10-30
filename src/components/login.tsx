@@ -147,7 +147,7 @@ export default function LoginPage() {
         </div>
 
         <footer className="auth-footer">
-          <span>© 2025 RiseUP</span>
+          <span>© <span suppressHydrationWarning>{typeof window === 'undefined' ? '' : new Date().getFullYear()}</span> RiseUP</span>
           <span className="auth-divider">•</span>
           <a href="#" className="auth-footer-link">Privacy</a>
           <span className="auth-divider">•</span>

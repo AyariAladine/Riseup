@@ -13,6 +13,8 @@ export default function Footer() {
     if (typeof window === 'undefined') return 'dark';
     return (localStorage.getItem('theme') as 'dark' | 'light') || getSystemTheme();
   });
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -34,13 +36,13 @@ export default function Footer() {
   }, []);
 
   return (
-    <footer className="site-footer" style={{ padding: '18px 12px', borderTop: '1px solid rgba(255,255,255,0.04)', marginTop: 32 }}>
+    <footer className="site-footer" style={{ paddingTop: 18, paddingRight: 12, paddingBottom: 18, paddingLeft: 12, borderTop: '1px solid rgba(255,255,255,0.04)', marginTop: 32 }}>
       <div className="header-inner" style={{ padding: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="small muted">© {new Date().getFullYear()} RiseUP</div>
+        <div className="small muted">© <span suppressHydrationWarning>{mounted ? new Date().getFullYear() : ''}</span> RiseUP</div>
         <div className="row small" style={{ alignItems: 'center', gap: 12 }}>
           <span className="muted">Theme</span>
           <button className="btn btn-ghost small" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
-            {theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
+            <span suppressHydrationWarning>{mounted ? (theme === 'dark' ? 'Switch to Light' : 'Switch to Dark') : ''}</span>
           </button>
         </div>
       </div>
