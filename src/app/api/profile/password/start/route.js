@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
-import User from '@/models/User';
 import nodemailer from 'nodemailer';
 
 export const dynamic = 'force-dynamic';
 
+// Legacy route - password changes should use Better Auth's changePassword instead
 export async function POST(req) {
   try {
     const { user } = await getUserFromRequest(req);
-    await connectToDatabase();
+    const db = await connectToDatabase();
+    const userCollection = db.collection('user');
 
-    const dbUser = await User.findById(user._id);
+    const dbUser = await userCollection.findOne({ email: user.email });
     if (!dbUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -20,9 +21,16 @@ export async function POST(req) {
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     
     // Save code to user (expires in 10 minutes)
-    dbUser.passwordChangeCode = verificationCode;
-    dbUser.passwordChangeCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
-    await dbUser.save();
+    await userCollection.updateOne(
+      { email: user.email },
+      { 
+        $set: { 
+          passwordChangeCode: verificationCode,
+          passwordChangeCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
+          updatedAt: new Date()
+        } 
+      }
+    );
 
     // Send email
     const transporter = nodemailer.createTransport({

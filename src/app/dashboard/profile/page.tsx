@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { showNotification } from '@/components/NotificationProvider';
 import { useProfile, useReclamations } from '@/lib/useProfile';
+import { changePassword, twoFactor, useSession } from '@/lib/auth-client';
+import FaceAuthSection from '@/components/FaceAuthSection';
 
 type Theme = 'system' | 'light' | 'dark';
 
@@ -23,14 +25,12 @@ export default function DashboardProfile() {
   // Use cached profile and reclamations data
   const { profile, mutate: mutateProfile } = useProfile();
   const { reclamations: cachedReclamations, mutate: mutateReclamations } = useReclamations();
+  const { data: session } = useSession();
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
-  const [sendingCode, setSendingCode] = useState(false);
   const [avatar, setAvatar] = useState('');
   const [theme, setTheme] = useState<Theme>('system');
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -39,6 +39,15 @@ export default function DashboardProfile() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
+  
+  // 2FA state
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [show2FASetup, setShow2FASetup] = useState(false);
+  const [qrCode, setQrCode] = useState('');
+  const [totpSecret, setTotpSecret] = useState('');
+  const [verifyCode, setVerifyCode] = useState('');
+  const [twoFactorMessage, setTwoFactorMessage] = useState('');
+  const [setting2FA, setSetting2FA] = useState(false);
   
   // Reclamation state
   const [reclamations, setReclamations] = useState<Reclamation[]>([]);
@@ -71,69 +80,156 @@ export default function DashboardProfile() {
     }
   }, [cachedReclamations]);
 
-  async function requestPasswordChange() {
+  // Check 2FA status from session
+  useEffect(() => {
+    if (session?.user) {
+      setTwoFactorEnabled(!!(session.user as any).twoFactorEnabled);
+    }
+  }, [session]);
+
+  async function handlePasswordChange() {
     if (!password) {
       setMessage('Please enter a new password');
+      showNotification('Please enter a new password', 'error');
       return;
     }
     if (!currentPassword) {
       setMessage('Please enter your current password');
+      showNotification('Please enter your current password', 'error');
       return;
     }
     
-    setSendingCode(true);
-    setMessage('');
-    try {
-      const res = await fetch('/api/profile/password/start', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to send code');
-      setCodeSent(true);
-      setMessage('Verification code sent to your email!');
-      showNotification('Verification code sent to your email!', 'info');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setMessage(msg);
-      showNotification(msg, 'error');
-    } finally {
-      setSendingCode(false);
-    }
-  }
-
-  async function confirmPasswordChange() {
-    if (!verificationCode) {
-      setMessage('Please enter the verification code');
+    // Validate new password
+    if (password.length < 8) {
+      setMessage('Password must be at least 8 characters');
+      showNotification('Password must be at least 8 characters', 'error');
       return;
     }
     
     setSaving(true);
     setMessage('');
     try {
-      const res = await fetch('/api/profile/password/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          code: verificationCode,
-          currentPassword,
-          newPassword: password,
-        }),
+      const result = await changePassword({
+        currentPassword,
+        newPassword: password,
+        revokeOtherSessions: false, // Keep other sessions active
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Password change failed');
+      
+      if (result.error) {
+        throw new Error(result.error.message || 'Password change failed');
+      }
+      
       setMessage('Password changed successfully!');
       setPassword('');
       setCurrentPassword('');
-      setVerificationCode('');
-      setCodeSent(false);
       showNotification('Password changed successfully!', 'success', 'Achievement Unlocked');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setMessage(msg);
+      showNotification(msg, 'error');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function enable2FA() {
+    setSetting2FA(true);
+    setTwoFactorMessage('');
+    try {
+      if (!twoFactor || !twoFactor.enable) {
+        throw new Error('2FA functionality is not available');
+      }
+      
+      const result = await twoFactor.enable({
+        password: currentPassword,
+      });
+      
+      if (result.error) {
+        throw new Error(result.error.message || 'Failed to enable 2FA');
+      }
+      
+      // Result contains totpURI which we need to convert to QR code
+      if (result.data && result.data.totpURI) {
+        // Generate QR code from URI
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(result.data.totpURI)}`;
+        setQrCode(qrCodeUrl);
+        
+        // Extract secret from URI (format: otpauth://totp/...?secret=XXXXX)
+        const secretMatch = result.data.totpURI.match(/secret=([A-Z0-9]+)/);
+        if (secretMatch) {
+          setTotpSecret(secretMatch[1]);
+        }
+        
+        setShow2FASetup(true);
+        setTwoFactorMessage('Scan the QR code with your authenticator app');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setTwoFactorMessage(msg);
+      showNotification(msg, 'error');
+    } finally {
+      setSetting2FA(false);
+    }
+  }
+
+  async function verify2FA() {
+    if (!verifyCode || verifyCode.length !== 6) {
+      setTwoFactorMessage('Please enter a valid 6-digit code');
+      return;
+    }
+    
+    setSetting2FA(true);
+    setTwoFactorMessage('');
+    try {
+      const result = await twoFactor.verifyTotp({
+        code: verifyCode,
+      });
+      
+      if (result.error) {
+        throw new Error(result.error.message || 'Invalid code');
+      }
+      
+      setTwoFactorEnabled(true);
+      setShow2FASetup(false);
+      setVerifyCode('');
+      setCurrentPassword('');
+      setTwoFactorMessage('Two-factor authentication enabled successfully!');
+      showNotification('2FA enabled successfully! 🔒', 'success');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setTwoFactorMessage(msg);
+      showNotification(msg, 'error');
+    } finally {
+      setSetting2FA(false);
+    }
+  }
+
+  async function disable2FA() {
+    if (!confirm('Are you sure you want to disable two-factor authentication? This will make your account less secure.')) {
+      return;
+    }
+    
+    setSetting2FA(true);
+    setTwoFactorMessage('');
+    try {
+      const result = await twoFactor.disable({
+        password: currentPassword,
+      });
+      
+      if (result.error) {
+        throw new Error(result.error.message || 'Failed to disable 2FA');
+      }
+      
+      setTwoFactorEnabled(false);
+      setCurrentPassword('');
+      setTwoFactorMessage('Two-factor authentication disabled');
+      showNotification('2FA disabled', 'info');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setTwoFactorMessage(msg);
+      showNotification(msg, 'error');
+    } finally {
+      setSetting2FA(false);
     }
   }
 
@@ -142,13 +238,8 @@ export default function DashboardProfile() {
     
     // If password change requested, handle it separately
     if (password && currentPassword) {
-      if (!codeSent) {
-        await requestPasswordChange();
-        return;
-      } else {
-        await confirmPasswordChange();
-        return;
-      }
+      await handlePasswordChange();
+      return;
     }
     
     // Normal profile update (name, avatar, preferences)
@@ -547,23 +638,6 @@ export default function DashboardProfile() {
               </label>
             )}
 
-            {codeSent && password && currentPassword && (
-              <div style={{ marginBottom: 12, padding: 12, background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: 6 }}>
-                <div className="small" style={{ marginBottom: 8, fontWeight: 600 }}>📧 Verification code sent to your email!</div>
-                <label style={{ display: 'block' }}>
-                  <div className="small muted" style={{ marginBottom: 4 }}>Enter 6-digit code</div>
-                  <input 
-                    type="text" 
-                    value={verificationCode} 
-                    placeholder="123456" 
-                    maxLength={6}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))} 
-                    style={{ width: '100%', fontSize: '18px', letterSpacing: '4px', textAlign: 'center' }} 
-                  />
-                </label>
-              </div>
-            )}
-
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <label>
                 <div className="small muted" style={{ marginBottom: 4 }}>Theme</div>
@@ -628,11 +702,9 @@ export default function DashboardProfile() {
               </div>
             </div>
 
-            <button className="github-btn github-btn-primary" type="submit" disabled={saving || sendingCode}>
-              {sendingCode ? 'Sending code...' : 
-               saving ? 'Saving…' : 
-               codeSent && password && currentPassword ? 'Verify & Change Password' :
-               password && currentPassword ? 'Send Verification Code' :
+            <button className="github-btn github-btn-primary" type="submit" disabled={saving}>
+              {saving ? 'Saving…' : 
+               password && currentPassword ? 'Change Password' :
                'Save changes'}
             </button>
           </form>
@@ -648,6 +720,213 @@ export default function DashboardProfile() {
             </label>
             <button className="github-btn" type="submit" disabled={!newEmail}>Send confirmation</button>
           </form>
+
+          <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid var(--border)' }} />
+          
+          {/* Two-Factor Authentication Section */}
+          <div>
+            <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              Two-Factor Authentication (2FA)
+            </h3>
+            <p className="muted small" style={{ marginBottom: 16 }}>
+              Add an extra layer of security to your account using a TOTP authenticator app like Google Authenticator or Authy.
+            </p>
+
+            {twoFactorMessage && (
+              <div style={{ 
+                padding: '10px 12px', 
+                marginBottom: 12, 
+                borderRadius: 6, 
+                fontSize: '13px',
+                background: twoFactorMessage.includes('success') ? 'rgba(126, 231, 135, 0.1)' : 'rgba(255, 107, 107, 0.1)',
+                color: twoFactorMessage.includes('success') ? '#7ee787' : '#ff6b6b',
+                border: `1px solid ${twoFactorMessage.includes('success') ? 'rgba(126, 231, 135, 0.3)' : 'rgba(255, 107, 107, 0.3)'}`
+              }}>
+                {twoFactorMessage}
+              </div>
+            )}
+
+            {!twoFactorEnabled && !show2FASetup && (
+              <div>
+                <label style={{ display: 'block', marginBottom: 12 }}>
+                  <div className="small muted" style={{ marginBottom: 4 }}>Current password (required to enable 2FA)</div>
+                  <input 
+                    type="password" 
+                    value={currentPassword} 
+                    onChange={(e) => setCurrentPassword(e.target.value)} 
+                    placeholder="Enter your current password"
+                    style={{ width: '100%' }} 
+                  />
+                </label>
+                <button 
+                  className="github-btn github-btn-primary" 
+                  onClick={enable2FA}
+                  disabled={!currentPassword || setting2FA}
+                  type="button"
+                >
+                  {setting2FA ? 'Enabling...' : 'Enable 2FA'}
+                </button>
+              </div>
+            )}
+
+            {show2FASetup && (
+              <div style={{ padding: 16, background: 'var(--panel-2)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <h4 style={{ marginTop: 0, fontSize: 14 }}>Step 1: Scan QR Code</h4>
+                <p className="small muted" style={{ marginBottom: 12 }}>
+                  Open your authenticator app (Google Authenticator, Authy, Microsoft Authenticator, etc.) on your phone and scan this QR code:
+                </p>
+                {qrCode && (
+                  <div style={{ textAlign: 'center', marginBottom: 16, padding: 12, background: 'white', borderRadius: 8 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={qrCode} alt="2FA QR Code" width={200} height={200} style={{ display: 'inline-block' }} />
+                  </div>
+                )}
+                
+                <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14 }}>Step 2: Enter Verification Code</h4>
+                <p className="small muted" style={{ marginBottom: 12 }}>
+                  Enter the 6-digit code from your authenticator app:
+                </p>
+                <label style={{ display: 'block', marginBottom: 12 }}>
+                  <input 
+                    type="text" 
+                    value={verifyCode} 
+                    onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))} 
+                    placeholder="123456"
+                    maxLength={6}
+                    style={{ width: '100%', fontSize: '18px', letterSpacing: '8px', textAlign: 'center' }} 
+                  />
+                </label>
+                
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button 
+                    className="github-btn github-btn-primary" 
+                    onClick={verify2FA}
+                    disabled={verifyCode.length !== 6 || setting2FA}
+                    type="button"
+                    style={{ flex: 1 }}
+                  >
+                    {setting2FA ? 'Verifying...' : 'Verify & Enable'}
+                  </button>
+                  <button 
+                    className="github-btn" 
+                    onClick={() => {
+                      setShow2FASetup(false);
+                      setQrCode('');
+                      setTotpSecret('');
+                      setVerifyCode('');
+                      setCurrentPassword('');
+                    }}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                
+                {totpSecret && (
+                  <details open style={{ marginTop: 16, fontSize: '13px', border: '1px solid var(--border)', borderRadius: 6, padding: 12 }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: 600, marginBottom: 8 }}>
+                      📱 Can&apos;t scan? Enter this key manually
+                    </summary>
+                    <p className="small muted" style={{ marginTop: 8, marginBottom: 8 }}>
+                      Open your authenticator app, select &quot;Enter a setup key&quot; or &quot;Manual entry&quot;, and enter:
+                    </p>
+                    <div style={{ 
+                      marginTop: 8, 
+                      padding: 12, 
+                      background: 'var(--panel-1)', 
+                      borderRadius: 4, 
+                      fontFamily: 'monospace',
+                      fontSize: '14px',
+                      wordBreak: 'break-all',
+                      border: '1px solid var(--border)',
+                      position: 'relative'
+                    }}>
+                      <strong style={{ color: '#2563eb' }}>{totpSecret}</strong>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(totpSecret);
+                          showNotification('Secret key copied to clipboard!', 'success');
+                        }}
+                        style={{
+                          position: 'absolute',
+                          right: 8,
+                          top: 8,
+                          padding: '4px 8px',
+                          fontSize: '11px',
+                          background: 'var(--panel-2)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 4,
+                          cursor: 'pointer'
+                        }}
+                        type="button"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <p className="small muted" style={{ marginTop: 8 }}>
+                      <strong>Account name:</strong> {email}<br/>
+                      <strong>Type:</strong> Time-based<br/>
+                      <strong>Digits:</strong> 6
+                    </p>
+                  </details>
+                )}
+              </div>
+            )}
+
+            {twoFactorEnabled && (
+              <div style={{ 
+                padding: 12, 
+                background: 'rgba(126, 231, 135, 0.1)', 
+                border: '1px solid rgba(126, 231, 135, 0.3)', 
+                borderRadius: 6,
+                marginBottom: 12
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7ee787" strokeWidth="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#7ee787' }}>
+                    2FA is currently enabled
+                  </span>
+                </div>
+                <p className="small muted" style={{ marginBottom: 12 }}>
+                  Your account is protected with two-factor authentication.
+                </p>
+                
+                <label style={{ display: 'block', marginBottom: 12 }}>
+                  <div className="small muted" style={{ marginBottom: 4 }}>Current password (required to disable 2FA)</div>
+                  <input 
+                    type="password" 
+                    value={currentPassword} 
+                    onChange={(e) => setCurrentPassword(e.target.value)} 
+                    placeholder="Enter your current password"
+                    style={{ width: '100%' }} 
+                  />
+                </label>
+                
+                <button 
+                  className="github-btn"
+                  onClick={disable2FA}
+                  disabled={!currentPassword || setting2FA}
+                  type="button"
+                  style={{ background: '#ff6b6b', color: 'white' }}
+                >
+                  {setting2FA ? 'Disabling...' : 'Disable 2FA'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Face Authentication Section */}
+          <FaceAuthSection 
+            userEmail={email}
+            isPremium={isPremium} 
+          />
         </div>
 
         {/* Reclamations Section */}

@@ -51,15 +51,15 @@ export async function PATCH(req) {
     }
     if (parsed.data.avatar !== undefined) update.avatar = parsed.data.avatar;
     if (parsed.data.preferences !== undefined) update.preferences = { ...user.preferences?.toObject?.() ?? user.preferences ?? {}, ...parsed.data.preferences };
-    // Update user in MongoDB directly
+    // Update user in Better Auth's user collection
     const db = await connectToDatabase();
-    const usersCollection = db.collection('users');
-    await usersCollection.updateOne(
+    const userCollection = db.collection('user'); // Better Auth uses 'user' (singular)
+    await userCollection.updateOne(
       { email: user.email },
-      { $set: update }
+      { $set: { ...update, updatedAt: new Date() } }
     );
     // Fetch updated user
-    const updated = await usersCollection.findOne({ email: user.email });
+    const updated = await userCollection.findOne({ email: user.email });
     // Send password change email if password was changed
     if (passwordChanged && process.env.GMAIL_USER && process.env.GMAIL_PASS) {
       try {
@@ -106,7 +106,4 @@ export async function PATCH(req) {
     return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
   }
 }
-
-// start email change: send verification link
-// email change flow moved to /api/profile/email/start and /api/profile/email/confirm
 

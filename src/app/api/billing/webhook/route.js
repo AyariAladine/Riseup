@@ -24,18 +24,19 @@ export async function POST(req) {
   }
 
   try {
-    await connectToDatabase();
     const db = await connectToDatabase();
-    const usersCollection = db.collection('users');
+    const userCollection = db.collection('user'); // Better Auth uses 'user' (singular)
+    
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
         const customerId = session.customer;
         if (customerId) {
-          await usersCollection.updateOne(
+          await userCollection.updateOne(
             { stripeCustomerId: customerId },
-            { $set: { isPremium: true } }
+            { $set: { isPremium: true, updatedAt: new Date() } }
           );
+          console.log(`✅ Premium activated via webhook for customer ${customerId}`);
         }
         break;
       }
@@ -44,19 +45,21 @@ export async function POST(req) {
         const sub = event.data.object;
         const customerId = sub.customer;
         const active = sub.status === 'active' || sub.status === 'trialing' || sub.status === 'past_due';
-        await usersCollection.updateOne(
+        await userCollection.updateOne(
           { stripeCustomerId: customerId },
-          { $set: { isPremium: !!active } }
+          { $set: { isPremium: !!active, updatedAt: new Date() } }
         );
+        console.log(`✅ Subscription ${sub.id} for customer ${customerId}: isPremium=${active}`);
         break;
       }
       case 'customer.subscription.deleted': {
         const sub = event.data.object;
         const customerId = sub.customer;
-        await usersCollection.updateOne(
+        await userCollection.updateOne(
           { stripeCustomerId: customerId },
-          { $set: { isPremium: false } }
+          { $set: { isPremium: false, updatedAt: new Date() } }
         );
+        console.log(`⚠️ Subscription cancelled for customer ${customerId}`);
         break;
       }
       default:

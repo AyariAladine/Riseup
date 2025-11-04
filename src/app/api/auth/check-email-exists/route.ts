@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import User from '@/models/User';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,8 +9,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ exists: false }, { status: 200 });
     }
     
+    let db;
     try {
-      await connectToDatabase();
+      db = await connectToDatabase();
     } catch (err) {
       console.error('Database connection error:', err);
       return NextResponse.json(
@@ -20,7 +20,8 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    const user = await User.findOne({ email });
+    const userCollection = db.collection('user'); // Better Auth uses 'user' (singular)
+    const user = await userCollection.findOne({ email });
     return NextResponse.json({ exists: !!user }, { status: 200 });
   } catch (error) {
     console.error('Check email error:', error);

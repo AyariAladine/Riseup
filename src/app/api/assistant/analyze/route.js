@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/rateLimiter';
-// Gemini removed: using Groq only for AI grading
 import Groq from 'groq-sdk';
 let __groqModelsCache = null;
 
@@ -17,7 +16,6 @@ export async function POST(req) {
     const message = (form.get('message') || '').toString();
   const screenshot = form.get('screenshot');
   const file = form.get('file');
-  // mode is locked to grader by product decision (kept as a concept, not needed as a variable)
 
   let analysis = '';
   let score = 0;

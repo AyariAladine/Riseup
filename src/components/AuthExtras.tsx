@@ -1,5 +1,5 @@
 "use client";
-import { authClient } from "@/lib/auth-client";
+import { signIn } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 
 // This component renders any client-only UI (e.g., social login, extra buttons, etc.)
@@ -8,7 +8,7 @@ export default function AuthExtras() {
   
   const handleGoogleSignIn = async () => {
     try {
-      await authClient.signIn.social({
+      await signIn.social({
         provider: "google",
         callbackURL: "/dashboard",
       });

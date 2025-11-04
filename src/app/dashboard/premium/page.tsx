@@ -17,13 +17,26 @@ export default function PremiumPage() {
     if (urlParams.get('success') === '1') {
       (async () => {
         try {
-          await fetch('/api/profile/upgrade', { method: 'POST', credentials: 'include' });
-          await mutateProfile(); // Refresh profile immediately
-          // Remove success parameter from URL
-          window.history.replaceState({}, '', '/dashboard/premium');
-          showNotification('Congratulations! Welcome to VIP!', 'success', 'Premium Activated');
+          const upgradeRes = await fetch('/api/profile/upgrade', { method: 'POST', credentials: 'include' });
+          const upgradeData = await upgradeRes.json();
+          
+          if (!upgradeRes.ok) {
+            throw new Error(upgradeData.error || 'Failed to activate premium');
+          }
+          
+          // Refresh profile cache
+          await mutateProfile();
+          
+          // Force a page reload to ensure session is fully updated
+          setTimeout(() => {
+            window.history.replaceState({}, '', '/dashboard/premium');
+            window.location.reload();
+          }, 1000);
+          
+          showNotification('Congratulations! Welcome to Premium! 🎉', 'success', 'Premium Activated');
         } catch (e) {
           setError((e as Error)?.message || String(e));
+          showNotification((e as Error)?.message || 'Failed to activate premium', 'error');
         }
       })();
     }

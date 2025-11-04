@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
+import { twoFactor } from "better-auth/plugins";
 import { MongoClient } from "mongodb";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import nodemailer from 'nodemailer';
@@ -169,10 +170,19 @@ export const auth = betterAuth({
         window: 60, // 60 seconds
         max: 30, // 30 requests per window (matching old rate limit)
     },
-    plugins: [nextCookies()] // make sure this is the last plugin in the array
+    plugins: [
+        twoFactor({
+            issuer: "RiseUP",
+            totpOptions: {
+                period: 30,
+                digits: 6,
+            }
+        }),
+        nextCookies() // make sure this is the last plugin in the array
+    ]
 })
 
-// Helper to get user from request headers - compatible with old API
+// Helper to get user from request headers - uses Better Auth only
 export async function getUserFromRequest(req: Request) {
     try {
         const session = await auth.api.getSession({
@@ -183,26 +193,35 @@ export async function getUserFromRequest(req: Request) {
             throw new Error('NO_TOKEN');
         }
 
-        // Fetch extra profile fields from your custom User collection
-        const mongoose = await import('mongoose');
-        const User = (await import('@/models/User')).default;
-        let extraProfile = {};
+        // Fetch extra profile fields directly from Better Auth's user collection
+        const { MongoClient } = await import('mongodb');
+        const mongoClient = new MongoClient(process.env.MONGODB_URI as string);
+        const db = mongoClient.db("riseup");
+        let extraProfile: any = {};
+        
         try {
-            // Find by email (or id if you prefer)
-            const dbUser = await User.findOne({ email: session.user.email }).lean();
-            if (dbUser && typeof dbUser === 'object' && !Array.isArray(dbUser)) {
-                // Exclude sensitive fields if present
-                const { password, __v, ...rest } = dbUser as any;
-                extraProfile = rest;
-            } else if (dbUser) {
-                extraProfile = { ...dbUser };
+            const userCollection = db.collection('user'); // Better Auth uses singular 'user'
+            const dbUser = await userCollection.findOne({ email: session.user.email });
+            
+            if (dbUser) {
+                // Get custom fields like isPremium, preferences, etc.
+                extraProfile = {
+                    isPremium: dbUser.isPremium || false,
+                    stripeCustomerId: dbUser.stripeCustomerId || '',
+                    preferences: dbUser.preferences || { theme: 'system', emailNotifications: true, isOnline: true },
+                    xp: dbUser.xp || 0,
+                    level: dbUser.level || 1,
+                };
             }
+            
+            await mongoClient.close();
         } catch (e) {
             console.error('Error fetching extra user profile:', e);
         }
+        
         // Map 'image' to 'avatar' for compatibility
-    // Use type assertions to access possibly missing fields
-    let avatar = (session.user as any)?.avatar || (session.user as any)?.image || (extraProfile as any)?.avatar || '';
+        let avatar = (session.user as any)?.avatar || (session.user as any)?.image || '';
+        
         return {
             user: {
                 ...session.user,

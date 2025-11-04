@@ -10,18 +10,21 @@ export const dynamic = 'force-dynamic';
 export async function POST(req) {
   try {
     const { user } = await getUserFromRequest(req);
-    await connectToDatabase();
-
-    // Update isPremium in MongoDB directly
     const db = await connectToDatabase();
-    const usersCollection = db.collection('users');
-    const result = await usersCollection.updateOne(
+    
+    // Update Better Auth user table only
+    const userCollection = db.collection('user'); // Better Auth uses 'user' (singular)
+    const result = await userCollection.updateOne(
       { email: user.email },
-      { $set: { isPremium: true } }
+      { $set: { isPremium: true, updatedAt: new Date() } }
     );
+    
     if (result.matchedCount === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    
+    console.log(`✅ Premium activated for ${user.email}`);
+    
     // Send premium confirmation email to user
     try {
       if (process.env.GMAIL_USER && process.env.GMAIL_PASS) {

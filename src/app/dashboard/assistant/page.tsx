@@ -124,10 +124,17 @@ export default function ChallengeBotPage() {
   async function loadConversation(id: string) {
     try {
       const res = await fetch(`/api/conversations?type=assistant&id=${id}`);
+      console.log('Fetching conversation:', `/api/conversations?type=assistant&id=${id}`);
+      const raw = await res.clone().text();
+      console.log('Raw response:', raw);
       if (res.ok) {
         const data = await res.json();
+        console.log('Conversation API response:', data);
         setMessages(data.messages || []);
         setCurrentConversationId(id);
+      } else {
+        const errorText = await res.text();
+        console.error('Conversation API error:', res.status, errorText);
       }
     } catch (error) {
       console.error('Failed to load conversation:', error);
@@ -214,6 +221,10 @@ export default function ChallengeBotPage() {
       if (imgInputRef.current) imgInputRef.current.value = '';
     }
   }
+
+  useEffect(() => {
+    console.log('Rendering messages:', messages);
+  }, [messages]);
 
   return (
     <div className="github-container">

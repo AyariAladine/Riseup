@@ -33,11 +33,11 @@ export async function POST(req) {
         metadata: { userId: user._id?.toString?.() || user.id },
       });
       stripeCustomerId = customer.id;
-      // Update the user in MongoDB directly
-      const usersCollection = (await connectToDatabase()).collection('users');
-      await usersCollection.updateOne(
+      // Update the user in Better Auth's user collection
+      const userCollection = (await connectToDatabase()).collection('user'); // Better Auth uses 'user' (singular)
+      await userCollection.updateOne(
         { email: user.email },
-        { $set: { stripeCustomerId } }
+        { $set: { stripeCustomerId, updatedAt: new Date() } }
       );
     }
 

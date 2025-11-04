@@ -10,6 +10,7 @@ function ResetPasswordInner() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
   const params = useSearchParams();
   const router = useRouter();
 
@@ -18,9 +19,18 @@ function ResetPasswordInner() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setMessage('');
+    setIsSuccess(false);
+    
+    if (!token) {
+      setMessage('Invalid or missing reset token');
+      setIsSuccess(false);
+      return;
+    }
+    
     try {
       const result = await resetPassword({
         newPassword: password,
+        token: token,
       });
       
       if (result.error) {
@@ -28,10 +38,12 @@ function ResetPasswordInner() {
       }
       
       setMessage('Password reset successful — redirecting to login...');
+      setIsSuccess(true);
       setTimeout(() => router.push('/auth/login'), 1500);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setMessage(msg);
+      setIsSuccess(false);
     }
   };
 
@@ -41,7 +53,10 @@ function ResetPasswordInner() {
   const allGood = hasMin && hasNumber && hasSpecial;
 
   useEffect(() => {
-    if (!token) setMessage('Invalid reset link');
+    if (!token) {
+      setMessage('Invalid reset link');
+      setIsSuccess(false);
+    }
   }, [token]);
 
   return (
@@ -49,7 +64,7 @@ function ResetPasswordInner() {
       <div className="container">
         <form onSubmit={handleSubmit} className="card" style={{ maxWidth: 520, margin: '0 auto' }}>
           <h1 style={{ marginTop: 0, marginBottom: 6, fontSize: 20 }}>Reset your password</h1>
-          {message && <p style={{ color: '#ff6b6b', marginBottom: 12 }}>{message}</p>}
+          {message && <p style={{ color: isSuccess ? '#7ee787' : '#ff6b6b', marginBottom: 12 }}>{message}</p>}
           <label style={{ position: 'relative' }}>
             <div className="small muted">New password</div>
             <input type={showPassword ? 'text' : 'password'} placeholder="New password" value={password} onChange={(e) => setPassword(e.target.value)} required />

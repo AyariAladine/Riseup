@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
-import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 
 export const dynamic = 'force-dynamic';
 
+// Legacy route - password changes should use Better Auth's changePassword instead
 export async function POST(req) {
   try {
     const { user } = await getUserFromRequest(req);
@@ -20,8 +20,9 @@ export async function POST(req) {
       }, { status: 400 });
     }
 
-    await connectToDatabase();
-    const dbUser = await User.findById(user._id);
+    const db = await connectToDatabase();
+    const userCollection = db.collection('user');
+    const dbUser = await userCollection.findOne({ email: user.email });
     
     console.log('User found:', dbUser ? 'yes' : 'no');
     console.log('Code in DB:', dbUser?.passwordChangeCode || 'none');
@@ -48,7 +49,7 @@ export async function POST(req) {
     }
 
     // Check if code expired
-    if (!dbUser.passwordChangeCodeExpires || dbUser.passwordChangeCodeExpires < new Date()) {
+    if (!dbUser.passwordChangeCodeExpires || new Date(dbUser.passwordChangeCodeExpires) < new Date()) {
       return NextResponse.json({ 
         error: 'Verification code expired. Please request a new one.' 
       }, { status: 400 });
@@ -62,10 +63,20 @@ export async function POST(req) {
     }
 
     // Update password
-    dbUser.password = await bcrypt.hash(newPassword, 10);
-    dbUser.passwordChangeCode = undefined;
-    dbUser.passwordChangeCodeExpires = undefined;
-    await dbUser.save();
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await userCollection.updateOne(
+      { email: user.email },
+      { 
+        $set: { 
+          password: hashedPassword,
+          updatedAt: new Date()
+        },
+        $unset: { 
+          passwordChangeCode: '', 
+          passwordChangeCodeExpires: '' 
+        }
+      }
+    );
 
     return NextResponse.json({ 
       success: true, 
