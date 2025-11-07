@@ -8,6 +8,7 @@ import SWRProvider from '@/components/SWRProvider';
 // Import a thin client-only wrapper for BottomBar. This keeps the server
 // layout as a Server Component while allowing BottomBar to run on the client.
 import BottomBarClient from '@/components/BottomBarClient';
+import FirebasePushSubscriber from '@/components/FirebasePushSubscriber';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -71,6 +72,7 @@ export default function RootLayout({
       >
         <SWRProvider>
           <ClientProviders />
+          <FirebasePushSubscriber />
           <ConditionalHeader />
           <main className="container" style={{ maxWidth: '100%', width: '100%' }}>
             <div style={{ width: '100%' }}>{children}</div>

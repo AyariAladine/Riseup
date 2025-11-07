@@ -3,6 +3,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import Reclamation from '@/models/Reclamation';
 import nodemailer from 'nodemailer';
+import { notifyReclamationSubmitted } from '@/lib/notification-helper';
 
 export const dynamic = 'force-dynamic';
 
@@ -140,6 +141,13 @@ export async function POST(req) {
     } catch (emailError) {
       // Log email error but don't fail the request
       console.error('❌ Failed to send reclamation email:', emailError?.message || emailError);
+    }
+
+    // Send push notification to user
+    try {
+      await notifyReclamationSubmitted(user._id.toString(), title);
+    } catch (notifError) {
+      console.error('❌ Failed to send reclamation push notification:', notifError);
     }
 
     return NextResponse.json({ reclamation }, { status: 201 });

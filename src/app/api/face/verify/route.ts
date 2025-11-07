@@ -3,20 +3,31 @@ import { getUserFromRequest } from '@/lib/auth';
 
 /**
  * Verify user's face for authentication
+ * Can be used for logged-in users or during face login (with email param)
  */
 export async function POST(req: NextRequest) {
   try {
-    const { user } = await getUserFromRequest(req);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const formData = await req.formData();
     const imageFile = formData.get('image') as File;
     const threshold = parseFloat(formData.get('threshold') as string) || 0.6;
+    const emailParam = formData.get('email') as string | null;
 
     if (!imageFile) {
       return NextResponse.json({ error: 'Image file is required' }, { status: 400 });
+    }
+
+    let userEmail: string;
+    
+    // If email is provided (face login flow), use that
+    if (emailParam) {
+      userEmail = emailParam;
+    } else {
+      // Otherwise require authenticated user
+      const { user } = await getUserFromRequest(req);
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      userEmail = user.email;
     }
 
     // Forward request to Face Recognition API
@@ -42,8 +53,8 @@ export async function POST(req: NextRequest) {
 
     const recognitionData = await faceApiResponse.json();
 
-    // Check if recognized face matches current user (changed from worker_id to user_email)
-    const isMatch = recognitionData.recognized && recognitionData.user_email === user.email;
+    // Check if recognized face matches the target user email
+    const isMatch = recognitionData.recognized && recognitionData.user_email === userEmail;
 
     return NextResponse.json({
       success: isMatch,
@@ -56,7 +67,7 @@ export async function POST(req: NextRequest) {
       details: {
         recognized: recognitionData.recognized,
         detectedUser: recognitionData.user_email, // Changed from worker_id
-        currentUser: user.email,
+        currentUser: userEmail,
         detectionQuality: recognitionData.detection_quality,
         comparisonStats: recognitionData.comparison_stats,
         userDetails: recognitionData.user_details,

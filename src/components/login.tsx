@@ -90,6 +90,26 @@ export default function LoginPage() {
         });
       }
 
+      // Send Firebase push notifications for new login
+      try {
+        await fetch('/api/after-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: result.data?.user?.id,
+            userName: result.data?.user?.name,
+          }),
+        });
+        
+        // Send login success notification
+        await fetch('/api/notifications/login-success', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (err) {
+        console.error('Failed to send login notification:', err);
+      }
+
       // Server sets HttpOnly cookie with token. Redirect to dashboard.
       // Dashboard will show onboarding modal if needed
       router.push('/dashboard');
@@ -128,6 +148,22 @@ export default function LoginPage() {
         keysToRemove.forEach(key => localStorage.removeItem(key));
       } catch {}
 
+      // Send Firebase push notifications for successful 2FA login
+      try {
+        await fetch('/api/after-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        
+        // Send 2FA verified notification
+        await fetch('/api/notifications/2fa-verified', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (err) {
+        console.error('Failed to send 2FA login notification:', err);
+      }
+
       router.push('/dashboard');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -152,7 +188,6 @@ export default function LoginPage() {
             <h1 className="auth-title">Welcome back</h1>
             <p className="auth-subtitle">Sign in to your RiseUP account</p>
           </div>
-
           {!require2FA ? (
             <form onSubmit={handleSubmit} className="auth-form">
               {error && (

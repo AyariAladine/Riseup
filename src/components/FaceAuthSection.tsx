@@ -768,45 +768,7 @@ export default function FaceAuthSection({
                   )}
                 </button>
 
-                <div style={{ position: 'relative', textAlign: 'center', margin: '8px 0' }}>
-                  <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: '1px', background: 'var(--border)' }}></div>
-                  <span style={{ 
-                    position: 'relative', 
-                    padding: '0 12px', 
-                    background: 'var(--panel)', 
-                    fontSize: '12px', 
-                    color: 'var(--muted)' 
-                  }}>
-                    or upload an image
-                  </span>
-                </div>
 
-                <input
-                  ref={registerFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleRegisterFileChange}
-                  style={{ display: 'none' }}
-                />
-                <button
-                  onClick={() => registerFileInputRef.current?.click()}
-                  disabled={isRegistering}
-                  className="github-btn"
-                  style={{
-                    width: '100%',
-                    padding: '10px 20px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    opacity: isRegistering ? 0.6 : 1
-                  }}
-                >
-                  <Upload className="w-4 h-4" />
-                  Upload from Device
-                </button>
               </>
             ) : (
               // Verify and Delete Section
@@ -848,47 +810,9 @@ export default function FaceAuthSection({
                   )}
                 </button>
 
-                <div style={{ position: 'relative', textAlign: 'center', margin: '8px 0' }}>
-                  <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: '1px', background: 'var(--border)' }}></div>
-                  <span style={{ 
-                    position: 'relative', 
-                    padding: '0 12px', 
-                    background: 'var(--panel)', 
-                    fontSize: '12px', 
-                    color: 'var(--muted)' 
-                  }}>
-                    or upload an image
-                  </span>
-                </div>
+         
 
-                <input
-                  ref={verifyFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleVerifyFileChange}
-                  style={{ display: 'none' }}
-                />
-                <button
-                  onClick={() => verifyFileInputRef.current?.click()}
-                  disabled={isVerifying}
-                  className="github-btn"
-                  style={{
-                    width: '100%',
-                    padding: '10px 20px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    opacity: isVerifying ? 0.6 : 1
-                  }}
-                >
-                  <Upload className="w-4 h-4" />
-                  Upload from Device
-                </button>
-
-                <div style={{ marginTop: '8px' }}>
+                <div style={{ marginTop: '16px' }}>
                   <button
                     onClick={handleDeleteFace}
                     disabled={isDeleting}

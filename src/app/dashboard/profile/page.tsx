@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { showNotification } from '@/components/NotificationProvider';
 import { useProfile, useReclamations } from '@/lib/useProfile';
 import { changePassword, twoFactor, useSession } from '@/lib/auth-client';
 import FaceAuthSection from '@/components/FaceAuthSection';
+import { useFaceVerification } from '@/hooks/useFaceVerification';
+import FaceVerificationModal from '@/components/FaceVerificationModal';
 
 type Theme = 'system' | 'light' | 'dark';
 
@@ -35,7 +36,6 @@ export default function DashboardProfile() {
   const [theme, setTheme] = useState<Theme>('system');
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [isOnline, setIsOnline] = useState<boolean>(true);
-  const [newEmail, setNewEmail] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
@@ -87,49 +87,60 @@ export default function DashboardProfile() {
     }
   }, [session]);
 
+  // Face verification for sensitive operations
+  const { isModalOpen, openVerification, closeVerification, handleVerified, verifyWithFace } = useFaceVerification();
+
   async function handlePasswordChange() {
     if (!password) {
       setMessage('Please enter a new password');
-      showNotification('Please enter a new password', 'error');
-      return;
-    }
-    if (!currentPassword) {
-      setMessage('Please enter your current password');
-      showNotification('Please enter your current password', 'error');
       return;
     }
     
     // Validate new password
     if (password.length < 8) {
       setMessage('Password must be at least 8 characters');
-      showNotification('Password must be at least 8 characters', 'error');
       return;
     }
     
-    setSaving(true);
-    setMessage('');
-    try {
-      const result = await changePassword({
-        currentPassword,
-        newPassword: password,
-        revokeOtherSessions: false, // Keep other sessions active
-      });
-      
-      if (result.error) {
-        throw new Error(result.error.message || 'Password change failed');
+    // Use face verification instead of old password for premium users
+    await verifyWithFace(async () => {
+      setSaving(true);
+      setMessage('');
+      try {
+        // Call custom API to set password with face verification (no old password needed)
+        const response = await fetch('/api/auth/set-password-with-face', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ newPassword: password }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to set password');
+        }
+        
+        setMessage('✅ Password set successfully!');
+        setPassword('');
+        setCurrentPassword('');
+        
+        // Send Firebase push notification for password change
+        try {
+          await fetch('/api/notifications/password-changed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+        } catch (notifErr) {
+          console.error('Failed to send password changed notification:', notifErr);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setMessage(`❌ ${msg}`);
+      } finally {
+        setSaving(false);
       }
-      
-      setMessage('Password changed successfully!');
-      setPassword('');
-      setCurrentPassword('');
-      showNotification('Password changed successfully!', 'success', 'Achievement Unlocked');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setMessage(msg);
-      showNotification(msg, 'error');
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   async function enable2FA() {
@@ -166,7 +177,6 @@ export default function DashboardProfile() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setTwoFactorMessage(msg);
-      showNotification(msg, 'error');
     } finally {
       setSetting2FA(false);
     }
@@ -194,11 +204,19 @@ export default function DashboardProfile() {
       setVerifyCode('');
       setCurrentPassword('');
       setTwoFactorMessage('Two-factor authentication enabled successfully!');
-      showNotification('2FA enabled successfully! 🔒', 'success');
+      
+      // Send Firebase notification
+      try {
+        await fetch('/api/notifications/2fa-enabled', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (err) {
+        console.error('Failed to send 2FA enabled notification:', err);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setTwoFactorMessage(msg);
-      showNotification(msg, 'error');
     } finally {
       setSetting2FA(false);
     }
@@ -223,11 +241,19 @@ export default function DashboardProfile() {
       setTwoFactorEnabled(false);
       setCurrentPassword('');
       setTwoFactorMessage('Two-factor authentication disabled');
-      showNotification('2FA disabled', 'info');
+      
+      // Send Firebase push notification for 2FA disabled
+      try {
+        await fetch('/api/notifications/2fa-disabled', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (notifErr) {
+        console.error('Failed to send 2FA disabled notification:', notifErr);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setTwoFactorMessage(msg);
-      showNotification(msg, 'error');
     } finally {
       setSetting2FA(false);
     }
@@ -236,8 +262,8 @@ export default function DashboardProfile() {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     
-    // If password change requested, handle it separately
-    if (password && currentPassword) {
+    // If password change requested, handle it separately with face verification
+    if (password && isPremium) {
       await handlePasswordChange();
       return;
     }
@@ -260,10 +286,19 @@ export default function DashboardProfile() {
       if (!res.ok) throw new Error(data.message || 'Update failed');
       setMessage('Profile updated');
       setName(data.user?.name || name);
-      showNotification('Profile updated successfully!', 'info');
       
       // Update the SWR cache with new data
       mutateProfile();
+      
+      // Send Firebase notification
+      try {
+        await fetch('/api/notifications/profile-updated', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (err) {
+        console.error('Failed to send profile updated notification:', err);
+      }
       
       try {
         // notify header about updated name/avatar/preferences
@@ -277,40 +312,6 @@ export default function DashboardProfile() {
     }
   }
 
-  // Optimistic toggle for online/offline status so users don't need to save the whole form
-  async function toggleOnline(online: boolean) {
-    // update UI immediately
-    setIsOnline(online);
-    showNotification(online ? 'You are now online' : 'You are now offline', 'info');
-    
-    // Notify header and other components about status change
-    try {
-      window.dispatchEvent(new CustomEvent('status-updated', { detail: { isOnline: online } }));
-    } catch {}
-    
-    try {
-      const res = await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ preferences: { isOnline: online } }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'Failed to update status');
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      showNotification(msg, 'error');
-      // revert UI
-      setIsOnline(prev => !prev);
-      // revert header status
-      try {
-        window.dispatchEvent(new CustomEvent('status-updated', { detail: { isOnline: !online } }));
-      } catch {}
-    }
-  }
-
   function onAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -321,26 +322,7 @@ export default function DashboardProfile() {
     reader.readAsDataURL(file);
   }
 
-  async function startEmailChange(e: React.FormEvent) {
-    e.preventDefault();
-    setMessage('');
-    if (!newEmail) return;
-    try {
-      const res = await fetch('/api/profile/email/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ newEmail }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to start email change');
-      setMessage(data.verifyUrl ? `Dev link: ${data.verifyUrl}` : 'Verification email sent');
-      setNewEmail('');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setMessage(msg);
-    }
-  }
+
 
   async function submitReclamation(e: React.FormEvent) {
     e.preventDefault();
@@ -367,7 +349,17 @@ export default function DashboardProfile() {
         // Update in list
         setReclamations(prev => prev.map(r => r._id === editingReclamationId ? data.reclamation : r));
         setReclamationMessage('Reclamation updated successfully');
-        showNotification('Reclamation updated successfully!', 'success');
+        
+        // Send Firebase notification
+        try {
+          await fetch('/api/notifications/reclamation-updated', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: reclamationTitle }),
+          });
+        } catch (err) {
+          console.error('Failed to send reclamation updated notification:', err);
+        }
         
         // Update the SWR cache
         mutateReclamations();
@@ -389,7 +381,17 @@ export default function DashboardProfile() {
         
         setReclamations(prev => [data.reclamation, ...prev]);
         setReclamationMessage('Reclamation submitted successfully');
-        showNotification('Reclamation sent successfully!', 'success');
+        
+        // Send Firebase notification
+        try {
+          await fetch('/api/notifications/reclamation-created', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: reclamationTitle }),
+          });
+        } catch (err) {
+          console.error('Failed to send reclamation created notification:', err);
+        }
         
         // Update the SWR cache
         mutateReclamations();
@@ -425,7 +427,16 @@ export default function DashboardProfile() {
       
       setReclamations(prev => prev.filter(r => r._id !== id));
       setReclamationMessage('Reclamation deleted');
-      showNotification('Reclamation deleted successfully!', 'success');
+      
+      // Send Firebase notification
+      try {
+        await fetch('/api/notifications/reclamation-deleted', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (err) {
+        console.error('Failed to send reclamation deleted notification:', err);
+      }
       
       // Update the SWR cache
       mutateReclamations();
@@ -627,98 +638,36 @@ export default function DashboardProfile() {
             </label>
 
             <label style={{ display: 'block', marginBottom: 10 }}>
-              <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>New password (optional)</div>
-              <input type="password" value={password} placeholder="••••••••" onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }} />
+              <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>
+                {isPremium ? '🔐 Set/Change Password (verified with face recognition)' : 'New password (optional)'}
+              </div>
+              <input type="password" value={password} placeholder="Enter new password" onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }} />
             </label>
 
-            {password && (
-              <label style={{ display: 'block', marginBottom: 10 }}>
-                <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>Current password (required to change)</div>
-                <input type="password" value={currentPassword} placeholder="Current password" onChange={(e) => setCurrentPassword(e.target.value)} required={!!password} style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }} />
-              </label>
-            )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-              <label>
-                <div className="small muted" style={{ marginBottom: 4 }}>Theme</div>
-                <select value={theme} onChange={(e) => setTheme(e.target.value as Theme)} style={{ width: '100%' }}>
-                  <option value="system">System</option>
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </select>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 24 }}>
-                <input type="checkbox" checked={emailNotifications} onChange={(e) => setEmailNotifications(e.target.checked)} />
-                <span className="small">Email notifications</span>
-              </label>
-            </div>
-
-            <div style={{ marginBottom: 16, padding: '12px', background: 'var(--panel-2)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <div>
-                  <div className="small" style={{ fontWeight: 600, marginBottom: 2 }}>
-                    {isOnline ? '🟢 Online' : '⚫ Offline'}
-                  </div>
-                  <div className="small muted">
-                    {isOnline ? 'You are visible to others' : 'You are invisible to others'}
-                  </div>
-                </div>
-                <label style={{ 
-                  position: 'relative', 
-                  display: 'inline-block', 
-                  width: '48px', 
-                  height: '24px',
-                  cursor: 'pointer'
-                }}>
-                  <input 
-                    type="checkbox" 
-                    checked={isOnline} 
-                    onChange={(e) => toggleOnline(e.target.checked)}
-                    style={{ opacity: 0, width: 0, height: 0 }}
-                  />
-                  <span style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: isOnline ? '#10b981' : '#6b7280',
-                    borderRadius: '24px',
-                    transition: 'background-color 0.2s',
-                  }}>
-                    <span style={{
-                      position: 'absolute',
-                      content: '""',
-                      height: '18px',
-                      width: '18px',
-                      left: isOnline ? '27px' : '3px',
-                      bottom: '3px',
-                      backgroundColor: 'white',
-                      borderRadius: '50%',
-                      transition: 'left 0.2s',
-                    }} />
-                  </span>
-                </label>
+            {password && isPremium && (
+              <div style={{ 
+                padding: '10px 12px', 
+                marginBottom: 10, 
+                background: 'rgba(234, 179, 8, 0.1)', 
+                border: '1px solid rgba(234, 179, 8, 0.3)', 
+                borderRadius: 6, 
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                <span style={{ color: '#eab308' }}>You&apos;ll verify your identity with face recognition instead of entering your current password</span>
               </div>
-            </div>
+            )}
 
             <button className="github-btn github-btn-primary" type="submit" disabled={saving}>
               {saving ? 'Saving…' : 
-               password && currentPassword ? 'Change Password' :
+               password ? 'Set Password with Face Verification' :
                'Save changes'}
             </button>
-          </form>
-
-          <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid var(--border)' }} />
-          
-          <form onSubmit={startEmailChange}>
-            <h3 style={{ marginTop: 0 }}>Change email</h3>
-            <p className="muted small">We&apos;ll email a confirmation link to the new address.</p>
-            <label style={{ display: 'block', marginBottom: 12 }}>
-              <div className="small muted" style={{ marginBottom: 4 }}>New email</div>
-              <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="name@example.com" style={{ width: '100%' }} />
-            </label>
-            <button className="github-btn" type="submit" disabled={!newEmail}>Send confirmation</button>
           </form>
 
           <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid var(--border)' }} />
@@ -849,7 +798,6 @@ export default function DashboardProfile() {
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(totpSecret);
-                          showNotification('Secret key copied to clipboard!', 'success');
                         }}
                         style={{
                           position: 'absolute',
@@ -1137,6 +1085,15 @@ export default function DashboardProfile() {
           </div>
         </div>
       </div>
+
+      {/* Face Verification Modal */}
+      <FaceVerificationModal
+        isOpen={isModalOpen}
+        onClose={closeVerification}
+        onVerified={handleVerified}
+        title="Verify Your Identity"
+        message="For security, please verify your face before disabling 2FA"
+      />
     </div>
   );
 }

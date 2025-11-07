@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 
 import { setUser as setUserGlobal } from '@/lib/user-client';
-import { showNotification } from '@/components/NotificationProvider';
 import { useProfile } from '@/lib/useProfile';
 
 type Profile = { user: { name: string; email: string; isPremium?: boolean } };
@@ -27,16 +26,23 @@ export default function PremiumPage() {
           // Refresh profile cache
           await mutateProfile();
           
+          // Send Firebase notification
+          try {
+            await fetch('/api/notifications/premium-activated', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+            });
+          } catch (err) {
+            console.error('Failed to send premium notification:', err);
+          }
+          
           // Force a page reload to ensure session is fully updated
           setTimeout(() => {
             window.history.replaceState({}, '', '/dashboard/premium');
             window.location.reload();
           }, 1000);
-          
-          showNotification('Congratulations! Welcome to Premium! 🎉', 'success', 'Premium Activated');
         } catch (e) {
           setError((e as Error)?.message || String(e));
-          showNotification((e as Error)?.message || 'Failed to activate premium', 'error');
         }
       })();
     }

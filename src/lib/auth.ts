@@ -4,6 +4,7 @@ import { twoFactor } from "better-auth/plugins";
 import { MongoClient } from "mongodb";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import nodemailer from 'nodemailer';
+import { notifyNewLogin, notifyAccountCreated, notifyPasswordReset } from './notification-helper';
 
 const mongoClient = new MongoClient(process.env.MONGODB_URI as string);
 const db = mongoClient.db("riseup");
@@ -14,9 +15,21 @@ export const auth = betterAuth({
     }),
     baseURL: process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
     secret: process.env.NEXTAUTH_SECRET || process.env.BETTER_AUTH_SECRET,
+    trustedOrigins: [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002"
+    ],
     emailAndPassword: {
         enabled: true,
         async sendResetPassword({ user, url }) {
+            // Send push notification for password reset
+            if (user.id) {
+                await notifyPasswordReset(user.id, user.email).catch(err => 
+                    console.error('Failed to send password reset push notification:', err)
+                );
+            }
+            
             // Send password reset email via Gmail SMTP (compatible with old implementation)
             if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
                 console.error('Mail service not configured');
@@ -60,6 +73,14 @@ export const auth = betterAuth({
      */
     async sessionCreated({ user, provider }: { user: any, provider?: string }) {
         console.log('[BetterAuth] sessionCreated event fired', { user, provider });
+            
+            // Send push notification for new login
+            if (user.id) {
+                await notifyNewLogin(user.id).catch(err => 
+                    console.error('Failed to send login push notification:', err)
+                );
+            }
+            
             // Send login notification email
             if (process.env.GMAIL_USER && process.env.GMAIL_PASS) {
                 try {
@@ -114,6 +135,13 @@ export const auth = betterAuth({
     emailVerification: {
         sendOnSignUp: true,
         async sendVerificationEmail({ user, url }) {
+            // Send push notification for account creation
+            if (user.id) {
+                await notifyAccountCreated(user.id, user.name).catch(err => 
+                    console.error('Failed to send signup push notification:', err)
+                );
+            }
+            
             // Send welcome email after signup (compatible with old implementation)
             if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
                 console.error('Mail service not configured');

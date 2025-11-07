@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { connectToDatabase } from '@/lib/mongodb';
+import { notifyPremiumUpgrade } from '@/lib/notification-helper';
 
 
 export const dynamic = 'force-dynamic';
@@ -32,11 +33,19 @@ export async function POST(req) {
         const session = event.data.object;
         const customerId = session.customer;
         if (customerId) {
-          await userCollection.updateOne(
+          const updatedUser = await userCollection.findOneAndUpdate(
             { stripeCustomerId: customerId },
-            { $set: { isPremium: true, updatedAt: new Date() } }
+            { $set: { isPremium: true, updatedAt: new Date() } },
+            { returnDocument: 'after' }
           );
           console.log(`✅ Premium activated via webhook for customer ${customerId}`);
+          
+          // Send push notification
+          if (updatedUser?.id) {
+            await notifyPremiumUpgrade(updatedUser.id).catch(err =>
+              console.error('Failed to send premium upgrade notification:', err)
+            );
+          }
         }
         break;
       }
@@ -45,11 +54,19 @@ export async function POST(req) {
         const sub = event.data.object;
         const customerId = sub.customer;
         const active = sub.status === 'active' || sub.status === 'trialing' || sub.status === 'past_due';
-        await userCollection.updateOne(
+        const updatedUser = await userCollection.findOneAndUpdate(
           { stripeCustomerId: customerId },
-          { $set: { isPremium: !!active, updatedAt: new Date() } }
+          { $set: { isPremium: !!active, updatedAt: new Date() } },
+          { returnDocument: 'after' }
         );
         console.log(`✅ Subscription ${sub.id} for customer ${customerId}: isPremium=${active}`);
+        
+        // Send push notification only when becoming premium
+        if (active && updatedUser?.id) {
+          await notifyPremiumUpgrade(updatedUser.id).catch(err =>
+            console.error('Failed to send premium upgrade notification:', err)
+          );
+        }
         break;
       }
       case 'customer.subscription.deleted': {

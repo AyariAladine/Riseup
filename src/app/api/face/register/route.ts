@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
+import { notifyFaceRecognitionEnabled } from '@/lib/notification-helper';
 
 /**
  * Register user's face with the Face Recognition API
@@ -54,6 +55,13 @@ export async function POST(req: NextRequest) {
         },
       }
     );
+
+    // Send push notification
+    if (user.id) {
+      await notifyFaceRecognitionEnabled(user.id).catch(err =>
+        console.error('Failed to send face recognition notification:', err)
+      );
+    }
 
     return NextResponse.json({
       success: true,
