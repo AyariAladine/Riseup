@@ -47,18 +47,15 @@ export default function Footer() {
         <div className="small muted">© 2025 RiseUP</div>
         <div className="row small" style={{ alignItems: 'center', gap: 12 }}>
           <span className="muted">Theme</span>
-          {!mounted ? (
-            <button className="btn btn-ghost small" disabled>
-              Switch Theme
-            </button>
-          ) : (
-            <button
-              className="btn btn-ghost small"
-              onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-            >
+          <button
+            className="btn btn-ghost small"
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            suppressHydrationWarning
+          >
+            <span suppressHydrationWarning>
               {theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
-            </button>
-          )}
+            </span>
+          </button>
         </div>
       </div>
     </footer>

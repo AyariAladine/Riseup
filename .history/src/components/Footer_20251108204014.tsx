@@ -2,9 +2,6 @@
 import { useEffect, useState } from 'react';
 
 export default function Footer() {
-  const [mounted, setMounted] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-
   const getSystemTheme = () => {
     if (typeof window === 'undefined') return 'dark';
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
@@ -12,20 +9,15 @@ export default function Footer() {
     }
     return 'dark';
   };
-
-  // Initialize theme after component mounts
-  useEffect(() => {
-    setMounted(true);
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('theme') as 'dark' | 'light';
-      setTheme(savedTheme || getSystemTheme());
-    }
-  }, []);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    return (localStorage.getItem('theme') as 'dark' | 'light') || getSystemTheme();
+  });
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
     document.body.setAttribute('data-theme', theme);
-    try { localStorage.setItem('theme', theme); } catch { }
+    try { localStorage.setItem('theme', theme); } catch {}
   }, [theme]);
 
   // Listen for system theme changes
@@ -44,21 +36,12 @@ export default function Footer() {
   return (
     <footer className="site-footer" style={{ padding: '18px 12px', borderTop: '1px solid rgba(255,255,255,0.04)', marginTop: 32 }}>
       <div className="header-inner" style={{ padding: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="small muted">© 2025 RiseUP</div>
+        <div className="small muted">© {new Date().getFullYear()} RiseUP</div>
         <div className="row small" style={{ alignItems: 'center', gap: 12 }}>
           <span className="muted">Theme</span>
-          {!mounted ? (
-            <button className="btn btn-ghost small" disabled>
-              Switch Theme
-            </button>
-          ) : (
-            <button
-              className="btn btn-ghost small"
-              onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-            >
-              {theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
-            </button>
-          )}
+          <button className="btn btn-ghost small" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
+            {theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
+          </button>
         </div>
       </div>
     </footer>
