@@ -1,0 +1,26 @@
+{
+    "sourceFile": "next.config.ts",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 2,
+            "patches": [
+                {
+                    "date": 1762631388609,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1762631395485,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,12 +1,13 @@\n import type { NextConfig } from \"next\";\r\n \r\n const nextConfig: NextConfig = {\r\n   /* config options here */\r\n+  turbopack: {\r\n+    root: __dirname,\r\n+  },\r\n   experimental: {\r\n-    turbopack: {\r\n-      root: __dirname,\r\n-    },\r\n+    // Prefer the default but keep placeholder in case we want other flags\r\n   },\r\n   images: {\r\n     formats: ['image/avif', 'image/webp'],\r\n   },\r\n"
+                },
+                {
+                    "date": 1762631530526,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,11 +1,8 @@\n import type { NextConfig } from \"next\";\r\n \r\n const nextConfig: NextConfig = {\r\n   /* config options here */\r\n-  turbopack: {\r\n-    root: __dirname,\r\n-  },\r\n   experimental: {\r\n     // Prefer the default but keep placeholder in case we want other flags\r\n   },\r\n   images: {\r\n"
+                }
+            ],
+            "date": 1762631388609,
+            "name": "Commit-0",
+            "content": "import type { NextConfig } from \"next\";\r\n\r\nconst nextConfig: NextConfig = {\r\n  /* config options here */\r\n  experimental: {\r\n    turbopack: {\r\n      root: __dirname,\r\n    },\r\n  },\r\n  images: {\r\n    formats: ['image/avif', 'image/webp'],\r\n  },\r\n  async headers() {\r\n    return [\r\n      {\r\n        source: '/_next/static/:path*',\r\n        headers: [\r\n          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },\r\n        ],\r\n      },\r\n      {\r\n        source: '/:all*(js|css|png|jpg|jpeg|gif|svg|webp|ico|woff|woff2|ttf)',\r\n        headers: [\r\n          { key: 'Cache-Control', value: 'public, max-age=2592000, immutable' }, // 30 days\r\n        ],\r\n      },\r\n      {\r\n        source: '/:path*',\r\n        headers: [\r\n          {\r\n            key: 'Content-Security-Policy',\r\n            value: [\r\n              \"default-src 'self'\",\r\n              \"script-src 'self' 'unsafe-eval' 'unsafe-inline'\",\r\n              \"style-src 'self' 'unsafe-inline'\",\r\n              \"img-src 'self' data: blob: https:\",\r\n              \"font-src 'self' data:\",\r\n              \"connect-src 'self' https:\",\r\n              \"frame-src 'self'\",\r\n              \"worker-src 'self' blob:\",\r\n              \"manifest-src 'self'\",\r\n            ].join('; '),\r\n          },\r\n        ],\r\n      },\r\n      {\r\n        source: '/sw.js',\r\n        headers: [\r\n          {\r\n            key: 'Service-Worker-Allowed',\r\n            value: '/',\r\n          },\r\n          {\r\n            key: 'Cache-Control',\r\n            value: 'public, max-age=0, must-revalidate',\r\n          },\r\n          {\r\n            key: 'Content-Type',\r\n            value: 'application/javascript',\r\n          },\r\n        ],\r\n      },\r\n      {\r\n        source: '/manifest.webmanifest',\r\n        headers: [\r\n          {\r\n            key: 'Content-Type',\r\n            value: 'application/manifest+json',\r\n          },\r\n        ],\r\n      },\r\n    ];\r\n  },\r\n};\r\n\r\nexport default nextConfig;\r\n"
+        }
+    ]
+}

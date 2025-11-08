@@ -1,0 +1,18 @@
+{
+    "sourceFile": "src/middleware.ts",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1761192096256,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1761192096256,
+            "name": "Commit-0",
+            "content": "import { NextRequest, NextResponse } from \"next/server\";\r\nimport { getSessionCookie } from \"better-auth/cookies\";\r\n\r\nexport async function middleware(request: NextRequest) {\r\n\tconst sessionCookie = getSessionCookie(request);\r\n\r\n\t// Allow access to auth routes and public pages\r\n\tconst publicPaths = [\"/auth/login\", \"/auth/signup\", \"/auth/forgetpassword\", \"/splash\"];\r\n\tconst isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path));\r\n\r\n\tif (!sessionCookie && !isPublicPath) {\r\n\t\treturn NextResponse.redirect(new URL(\"/auth/login\", request.url));\r\n\t}\r\n\r\n\treturn NextResponse.next();\r\n}\r\n\r\nexport const config = {\r\n\tmatcher: [\"/((?!api|_next/static|_next/image|favicon.ico).*)\"], // Specify the routes the middleware applies to\r\n};"
+        }
+    ]
+}

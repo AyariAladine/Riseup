@@ -12,7 +12,7 @@ export async function GET(request) {
     await connectToDatabase();
 
     console.log('Checking onboarding for user:', user._id.toString());
-    
+
     // Try both formats - ObjectId and string
     const profile = await UserLearningProfile.findOne({
       $or: [
@@ -20,7 +20,7 @@ export async function GET(request) {
         { userId: user._id.toString() }
       ]
     });
-    
+
     console.log('Profile found:', !!profile, profile ? `userId: ${profile.userId}` : 'none');
 
     return NextResponse.json({

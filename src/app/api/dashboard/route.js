@@ -19,7 +19,7 @@ export async function GET(req) {
           avatar: user.avatar || ''
         }
       }),
-      { 
+      {
         status: 200,
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',

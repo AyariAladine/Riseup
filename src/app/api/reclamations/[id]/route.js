@@ -11,7 +11,7 @@ export async function GET(req, { params }) {
     const { user } = await getUserFromRequest(req);
     await connectToDatabase();
 
-  const { id } = await params;
+    const { id } = await params;
     const reclamation = await Reclamation.findOne({ _id: id, userId: user._id }).lean();
 
     if (!reclamation) {
@@ -34,7 +34,7 @@ export async function PATCH(req, { params }) {
     const { user } = await getUserFromRequest(req);
     await connectToDatabase();
 
-  const { id } = await params;
+    const { id } = await params;
     const body = await req.json();
     const { title, description, category, priority } = body;
 
@@ -75,7 +75,7 @@ export async function DELETE(req, { params }) {
     const { user } = await getUserFromRequest(req);
     await connectToDatabase();
 
-  const { id } = await params;
+    const { id } = await params;
     const reclamation = await Reclamation.findOne({ _id: id, userId: user._id });
 
     if (!reclamation) {

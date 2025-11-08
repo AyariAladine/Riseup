@@ -1,0 +1,18 @@
+{
+    "sourceFile": "public/manifest.webmanifest",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1762633227855,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1762633227855,
+            "name": "Commit-0",
+            "content": "{\r\n  \"name\": \"RiseUP\",\r\n  \"short_name\": \"RiseUP\",\r\n  \"description\": \"Task management and learning app\",\r\n  \"start_url\": \"/\",\r\n  \"display\": \"standalone\",\r\n  \"background_color\": \"#0b0d0f\",\r\n  \"theme_color\": \"#0b0d0f\",\r\n  \"scope\": \"/\",\r\n  \"icons\": [\r\n    {\r\n      \"src\": \"/icon-72x72.png\",\r\n      \"sizes\": \"72x72\",\r\n      \"type\": \"image/png\"\r\n    },\r\n    {\r\n      \"src\": \"/icon-96x96.png\",\r\n      \"sizes\": \"96x96\",\r\n      \"type\": \"image/png\"\r\n    },\r\n    {\r\n      \"src\": \"/icon-152x152.png\",\r\n      \"sizes\": \"152x152\",\r\n      \"type\": \"image/png\"\r\n    },\r\n    {\r\n      \"src\": \"/icon-192x192.png\",\r\n      \"sizes\": \"192x192\",\r\n      \"type\": \"image/png\"\r\n    },\r\n    {\r\n      \"src\": \"/icon.svg\",\r\n      \"sizes\": \"any\",\r\n      \"type\": \"image/svg+xml\",\r\n      \"purpose\": \"any maskable\"\r\n    }\r\n  ]\r\n}"
+        }
+    ]
+}

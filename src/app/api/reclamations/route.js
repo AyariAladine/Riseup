@@ -65,7 +65,7 @@ export async function POST(req) {
       if (process.env.GMAIL_USER && process.env.GMAIL_PASS && process.env.OWNER_EMAIL) {
         // Get full user details including email
         const userDetails = await User.findById(user._id).lean();
-        
+
         const transporter = nodemailer.createTransport({
           service: 'gmail',
           auth: {

@@ -9,12 +9,12 @@ export async function GET(request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     await connectToDatabase();
-    
+
     const chatType = new URL(request.url).searchParams.get('type') || 'learn';
-    
-    let history = await ChatHistory.findOne({ 
-      userId: user.id, 
-      chatType 
+
+    let history = await ChatHistory.findOne({
+      userId: user.id,
+      chatType
     }).lean();
 
     if (!history) {
@@ -49,8 +49,8 @@ export async function POST(request) {
     // Update or create chat history
     const history = await ChatHistory.findOneAndUpdate(
       { userId: user.id, chatType },
-      { 
-        $set: { 
+      {
+        $set: {
           messages,
           updatedAt: new Date()
         }

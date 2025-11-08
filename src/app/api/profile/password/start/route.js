@@ -18,7 +18,7 @@ export async function POST(req) {
 
     // Generate 6-digit verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     // Save code to user (expires in 10 minutes)
     dbUser.passwordChangeCode = verificationCode;
     dbUser.passwordChangeCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
@@ -53,14 +53,14 @@ export async function POST(req) {
       `,
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Verification code sent to your email' 
+    return NextResponse.json({
+      success: true,
+      message: 'Verification code sent to your email'
     });
   } catch (e) {
     console.error('Password change start error:', e);
-    return NextResponse.json({ 
-      error: e?.message || 'Server error' 
+    return NextResponse.json({
+      error: e?.message || 'Server error'
     }, { status: 500 });
   }
 }
