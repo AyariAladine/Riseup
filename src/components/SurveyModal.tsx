@@ -85,17 +85,22 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
       const res = await fetch('/api/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(data)
       });
+      
+      const responseData = await res.json().catch(() => null);
+      
       if (res.ok) {
-        const saved = await res.json().catch(() => null);
-        onComplete(saved?.profile || null);
+        onComplete(responseData?.profile || null);
       } else {
-        alert('Failed to save survey.');
+        const errorMsg = responseData?.error || 'Failed to save survey';
+        console.error('Onboarding error response:', responseData);
+        alert(`❌ ${errorMsg}\n\nMake sure you are logged in and try again.`);
       }
     } catch (err) {
-      console.error(err);
-      alert('Error saving survey');
+      console.error('Onboarding network error:', err);
+      alert('❌ Network error: Could not reach the server.\n\nMake sure you are logged in.');
     } finally {
       setIsSubmitting(false);
     }

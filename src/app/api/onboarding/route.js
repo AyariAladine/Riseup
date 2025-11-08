@@ -36,12 +36,30 @@ export async function GET(request) {
 // Save onboarding data
 export async function POST(request) {
   try {
-    const { user } = await getUserFromRequest(request);
+    let user;
+    try {
+      const result = await getUserFromRequest(request);
+      user = result.user;
+    } catch (authErr) {
+      console.error('Auth error in onboarding:', authErr.message);
+      return NextResponse.json(
+        { error: `Authentication failed: ${authErr.message}` },
+        { status: 401 }
+      );
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not authenticated' },
+        { status: 401 }
+      );
+    }
+
     await connectToDatabase();
 
     const data = await request.json();
+    console.log('Onboarding POST - Raw data received:', data);
 
-    // Normalize incoming survey values to the enum values expected by UserLearningProfile
     const normalize = (raw) => {
       const out = { ...raw };
 
@@ -71,6 +89,8 @@ export async function POST(request) {
         casual: 'somewhat_active',
         somewhat: 'somewhat_active',
         'somewhat_active': 'somewhat_active',
+        intense: 'very_active',
+        regular: 'active',
         inactive: 'inactive'
       };
 
@@ -88,7 +108,8 @@ export async function POST(request) {
         'somewhat': 'somewhat_committed',
         'somewhat_committed': 'somewhat_committed',
         flexible: 'exploring',
-        exploring: 'exploring'
+        exploring: 'exploring',
+        dedicated: 'very_committed'
       };
 
       if (typeof out.commitmentLevel === 'string') {
@@ -105,6 +126,7 @@ export async function POST(request) {
       if (out.age !== undefined) out.age = out.age === '' ? undefined : Number(out.age);
       if (out.yearsOfCoding !== undefined) out.yearsOfCoding = out.yearsOfCoding === '' ? undefined : Number(out.yearsOfCoding);
       if (out.hoursPerWeek !== undefined) out.hoursPerWeek = out.hoursPerWeek === '' ? undefined : Number(out.hoursPerWeek);
+      if (out.projectsCompleted !== undefined) out.projectsCompleted = out.projectsCompleted === '' ? undefined : Number(out.projectsCompleted);
 
       return out;
     };
@@ -117,15 +139,19 @@ export async function POST(request) {
 
     if (profile) {
       // Update existing profile
+      console.log('Updating existing profile for user:', user._id.toString());
       Object.assign(profile, normalized);
       await profile.save();
     } else {
       // Create new profile
+      console.log('Creating new profile for user:', user._id.toString());
       profile = await UserLearningProfile.create({
         userId: user._id,
         ...normalized
       });
     }
+
+    console.log('Onboarding saved successfully for user:', user._id.toString());
 
     return NextResponse.json({
       success: true,
@@ -134,7 +160,13 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error('Onboarding save error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { 
+        error: error.message || 'Failed to save onboarding data',
+        details: error.stack 
+      },
+      { status: 500 }
+    );
   }
 }
 

@@ -33,6 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Hedera credentials - NEVER commit
+.hedera-credentials-backup
+.hedera-credentials
+hedera-credentials.json
+
 # vercel
 .vercel
 

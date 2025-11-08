@@ -1,7 +1,7 @@
 // Service Worker pour RiseUP PWA
 // Stratégies de cache: Network First pour API, Cache First pour assets statiques
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4'; // Increment version to force update
 const CACHE_NAME = `riseup-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
 
@@ -59,18 +59,17 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Stratégie Network First avec fallback sur cache (pour API)
+// Stratégie Network First avec timeout court (pour API)
 async function networkFirst(request) {
   const cache = await caches.open(CACHE_NAME);
   
   try {
-    // Essayer le réseau en premier avec timeout
-    const fetchPromise = fetch(request);
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Network timeout')), 5000)
-    );
+    // Essayer le réseau avec timeout de 5 secondes
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     
-    const response = await Promise.race([fetchPromise, timeoutPromise]);
+    const response = await fetch(request, { signal: controller.signal });
+    clearTimeout(timeoutId);
     
     if (response.ok) {
       // Ne mettre en cache que les requêtes GET
@@ -172,7 +171,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stratégie Network First pour les autres routes API
+  // Stratégie Network First pour les routes API
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       networkFirst(request).catch(async () => {
@@ -193,18 +192,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // Stratégie Network First pour les pages HTML dynamiques
+  // Pour les pages HTML dynamiques (navigate requests) - Network ONLY, no caching
+  // Cela garantit que les pages avec authentification requise ne sont jamais servies du cache
   if (request.mode === 'navigate') {
     event.respondWith(
-      networkFirst(request).catch(async () => {
-        // Fallback sur la page offline
-        const cache = await caches.open(CACHE_NAME);
-        const offlineResponse = await cache.match(OFFLINE_URL);
-        return offlineResponse || new Response('Offline - Page non disponible', {
-          status: 503,
-          statusText: 'Service Unavailable'
-        });
-      })
+      fetch(request)
+        .then((response) => {
+          // Don't cache navigation responses - they may require auth
+          return response;
+        })
+        .catch(async () => {
+          // Si réseau échoue complètement, retourner la page offline
+          const cache = await caches.open(CACHE_NAME);
+          const offlineResponse = await cache.match(OFFLINE_URL);
+          return offlineResponse || new Response('Offline - Page non disponible', {
+            status: 503,
+            statusText: 'Service Unavailable'
+          });
+        })
     );
     return;
   }

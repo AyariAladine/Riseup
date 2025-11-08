@@ -235,6 +235,19 @@ export default function Header() {
                     {premium ? 'Premium' : 'Upgrade to Premium'}
                   </Link>
                   <div className="github-dropdown-divider" />
+                  <Link href="/achievements" className="github-dropdown-item">
+                    <svg className="github-dropdown-icon" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z" />
+                    </svg>
+                    Achievements
+                  </Link>
+                  <Link href="/leaderboard" className="github-dropdown-item">
+                    <svg className="github-dropdown-icon" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M0 11.75C0 10.784.784 10 1.75 10h3.5a.75.75 0 01.75.75v4.5a.75.75 0 01-.75.75h-3.5A1.75 1.75 0 010 14.25v-2.5zm5-3C5 6.784 5.784 6 6.75 6h3.5a.75.75 0 01.75.75v7.5a.75.75 0 01-.75.75h-3.5A1.75 1.75 0 015 13.25v-4.5zm5-4C10 2.784 10.784 2 11.75 2h3.5A1.75 1.75 0 0117 3.75v9.5A1.75 1.75 0 0115.25 15h-3.5a.75.75 0 01-.75-.75v-11A.75.75 0 0110 2.75z" />
+                    </svg>
+                    Leaderboard
+                  </Link>
+                  <div className="github-dropdown-divider" />
                   <button onClick={async () => { 
                     await fetch('/api/auth/logout', { method: 'POST' }); 
                     // Clear all caches

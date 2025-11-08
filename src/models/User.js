@@ -18,6 +18,11 @@ const userSchema = new mongoose.Schema({
   level: { type: Number, default: 1 },
   isPremium: { type: Boolean, default: false },
   stripeCustomerId: { type: String, default: '' },
+  
+  // Blockchain & NFT fields
+  walletAddress: { type: String, default: null },
+  nftContractAddress: { type: String, default: null },
+  totalBadgesEarned: { type: Number, default: 0 },
 }, { timestamps: true });
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
