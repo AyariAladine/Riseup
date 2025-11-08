@@ -9,7 +9,7 @@ export async function POST(req) {
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
     const rl = rateLimit(`tasks:summary:${ip}`, 10, 60 * 1000); // 10 requests per minute
     if (!rl.ok) {
-      return new Response(JSON.stringify({ error: 'Too many requests' }), {
+      return new Response(JSON.stringify({ error: 'Too many requests' }), { 
         status: 429,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -19,7 +19,7 @@ export async function POST(req) {
     const { taskId, title, description } = await req.json();
 
     if (!taskId || !title) {
-      return new Response(JSON.stringify({ error: 'Task ID and title are required' }), {
+      return new Response(JSON.stringify({ error: 'Task ID and title are required' }), { 
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -27,7 +27,7 @@ export async function POST(req) {
 
     const groqKey = process.env.GROQ_API_KEY;
     if (!groqKey) {
-      return new Response(JSON.stringify({ error: 'AI service not configured' }), {
+      return new Response(JSON.stringify({ error: 'AI service not configured' }), { 
         status: 503,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -93,8 +93,8 @@ Focus on the outcome and value delivered. Keep it professional and concise.`;
       console.error('Groq API failed:', groqError);
       // Fallback to simple summary
       const fallbackSummary = `Task "${title}" has been completed successfully. ${description ? `The task involved: ${description}` : 'All objectives were met and the work is now finished.'}`;
-
-      return new Response(JSON.stringify({ summary: fallbackSummary }), {
+      
+      return new Response(JSON.stringify({ summary: fallbackSummary }), { 
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -102,13 +102,13 @@ Focus on the outcome and value delivered. Keep it professional and concise.`;
 
   } catch (err) {
     if (err.message === 'NO_TOKEN' || err.message === 'INVALID_TOKEN') {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
     }
     console.error('Task summary generation failed:', err);
-    return new Response(JSON.stringify({ error: 'Failed to generate summary' }), {
+    return new Response(JSON.stringify({ error: 'Failed to generate summary' }), { 
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

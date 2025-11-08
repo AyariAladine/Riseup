@@ -11,31 +11,31 @@ export async function GET(req) {
     if (!rl.ok) return new Response(JSON.stringify({ message: 'Too many requests' }), { status: 429 });
 
     const { user } = await getUserFromRequest(req);
-    const tasks = await Task.find({ userId: user._id.toString() }).sort({ dueAt: 1, createdAt: -1 }).lean();
-
-    // Format tasks to ensure _id is string and all fields are properly serialized
-    const formattedTasks = tasks.map(task => {
-      // Normalize status field for backwards compatibility
-      let status = task.status || 'pending';
-      if (!task.status && task.completed) {
-        status = 'completed';
-      }
-
-      return {
-        ...task,
-        _id: task._id.toString(),
-        user: task.user?.toString(),
-        status: status, // Ensure status is always present
-        dueAt: task.dueAt ? task.dueAt.toISOString() : null,
-        dueDate: task.dueDate ? task.dueDate.toISOString() : null,
-        completedAt: task.completedAt ? task.completedAt.toISOString() : null,
-        createdAt: task.createdAt ? task.createdAt.toISOString() : null,
-        updatedAt: task.updatedAt ? task.updatedAt.toISOString() : null
-      };
-    });
-
-    console.log('Tasks GET - returning tasks count:', formattedTasks.length);
-    return new Response(JSON.stringify({ tasks: formattedTasks }), { status: 200 });
+  const tasks = await Task.find({ userId: user._id.toString() }).sort({ dueAt: 1, createdAt: -1 }).lean();
+  
+  // Format tasks to ensure _id is string and all fields are properly serialized
+  const formattedTasks = tasks.map(task => {
+    // Normalize status field for backwards compatibility
+    let status = task.status || 'pending';
+    if (!task.status && task.completed) {
+      status = 'completed';
+    }
+    
+    return {
+      ...task,
+      _id: task._id.toString(),
+      user: task.user?.toString(),
+      status: status, // Ensure status is always present
+      dueAt: task.dueAt ? task.dueAt.toISOString() : null,
+      dueDate: task.dueDate ? task.dueDate.toISOString() : null,
+      completedAt: task.completedAt ? task.completedAt.toISOString() : null,
+      createdAt: task.createdAt ? task.createdAt.toISOString() : null,
+      updatedAt: task.updatedAt ? task.updatedAt.toISOString() : null
+    };
+  });
+  
+  console.log('Tasks GET - returning tasks count:', formattedTasks.length);
+  return new Response(JSON.stringify({ tasks: formattedTasks }), { status: 200 });
   } catch (err) {
     if (err.message === 'NO_TOKEN' || err.message === 'INVALID_TOKEN') {
       return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
@@ -58,12 +58,12 @@ export async function POST(req) {
       return new Response(JSON.stringify({ message: 'Validation error', errors: parsed.error.flatten() }), { status: 400 });
     }
     const { title, description, dueAt } = parsed.data;
-    const task = await Task.create({
-      user: user._id,
-      userId: user._id.toString(),
-      title,
+    const task = await Task.create({ 
+      user: user._id, 
+      userId: user._id.toString(), 
+      title, 
       description: description || '',
-      dueAt: dueAt ? new Date(dueAt) : undefined
+      dueAt: dueAt ? new Date(dueAt) : undefined 
     });
     // Notify user about new task
     try {
@@ -73,7 +73,7 @@ export async function POST(req) {
         icon: '/globe.svg',
         url: '/dashboard/tasks',
       });
-    } catch { }
+    } catch {}
     return new Response(JSON.stringify({ task }), { status: 201 });
   } catch (err) {
     if (err.message === 'NO_TOKEN' || err.message === 'INVALID_TOKEN') {

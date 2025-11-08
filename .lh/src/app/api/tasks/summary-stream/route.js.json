@@ -3,11 +3,15 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 0,
+            "activePatchIndex": 1,
             "patches": [
                 {
                     "date": 1762634898355,
                     "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1762635725703,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -8,9 +8,9 @@\n   try {\n     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';\n     const rl = rateLimit(`tasks:summary:${ip}`, 10, 60 * 1000); // 10 requests per minute\n     if (!rl.ok) {\n-      return new Response(JSON.stringify({ error: 'Too many requests' }), { \n+      return new Response(JSON.stringify({ error: 'Too many requests' }), {\n         status: 429,\n         headers: { 'Content-Type': 'application/json' }\n       });\n     }\n@@ -18,17 +18,17 @@\n     const { user } = await getUserFromRequest(req);\n     const { taskId, title, description } = await req.json();\n \n     if (!taskId || !title) {\n-      return new Response(JSON.stringify({ error: 'Task ID and title are required' }), { \n+      return new Response(JSON.stringify({ error: 'Task ID and title are required' }), {\n         status: 400,\n         headers: { 'Content-Type': 'application/json' }\n       });\n     }\n \n     const groqKey = process.env.GROQ_API_KEY;\n     if (!groqKey) {\n-      return new Response(JSON.stringify({ error: 'AI service not configured' }), { \n+      return new Response(JSON.stringify({ error: 'AI service not configured' }), {\n         status: 503,\n         headers: { 'Content-Type': 'application/json' }\n       });\n     }\n@@ -92,24 +92,24 @@\n     } catch (groqError) {\n       console.error('Groq API failed:', groqError);\n       // Fallback to simple summary\n       const fallbackSummary = `Task \"${title}\" has been completed successfully. ${description ? `The task involved: ${description}` : 'All objectives were met and the work is now finished.'}`;\n-      \n-      return new Response(JSON.stringify({ summary: fallbackSummary }), { \n+\n+      return new Response(JSON.stringify({ summary: fallbackSummary }), {\n         status: 200,\n         headers: { 'Content-Type': 'application/json' }\n       });\n     }\n \n   } catch (err) {\n     if (err.message === 'NO_TOKEN' || err.message === 'INVALID_TOKEN') {\n-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { \n+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {\n         status: 401,\n         headers: { 'Content-Type': 'application/json' }\n       });\n     }\n     console.error('Task summary generation failed:', err);\n-    return new Response(JSON.stringify({ error: 'Failed to generate summary' }), { \n+    return new Response(JSON.stringify({ error: 'Failed to generate summary' }), {\n       status: 500,\n       headers: { 'Content-Type': 'application/json' }\n     });\n   }\n"
                 }
             ],
             "date": 1762634898355,

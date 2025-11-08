@@ -76,14 +76,14 @@ export default function TasksPage() {
 
   useEffect(() => {
     let mounted = true;
-
+    
     // Set loading to false immediately to test
     setTimeout(() => {
       if (mounted && mountedRef.current) {
         setLoading(false);
       }
     }, 100);
-
+    
     (async () => {
       try {
         const res = await fetch("/api/tasks", { cache: "no-store" });
@@ -103,7 +103,7 @@ export default function TasksPage() {
         setError("Cannot load tasks. You may be offline.");
       }
     })();
-
+    
     return () => {
       mounted = false;
     };
@@ -117,7 +117,7 @@ export default function TasksPage() {
     tasks.forEach((task) => {
       // Ensure status is normalized
       const taskStatus = task.status || (task.completed ? "completed" : "pending");
-
+      
       if (taskStatus === "pending") {
         pending.push({ ...task, status: "pending" });
       } else if (taskStatus === "in_progress") {
@@ -274,7 +274,7 @@ export default function TasksPage() {
       if (generatingSummary === taskId) return;
 
       setGeneratingSummary(taskId);
-
+      
       try {
         const task = tasks.find((t) => t._id === taskId);
         if (!task) return;
@@ -287,9 +287,9 @@ export default function TasksPage() {
                 prev.map((t) =>
                   t._id === taskId
                     ? {
-                      ...t,
-                      aiSummary: `Task "${t.title}" has been completed successfully.`,
-                    }
+                        ...t,
+                        aiSummary: `Task "${t.title}" has been completed successfully.`,
+                      }
                     : t,
                 ),
               );
@@ -346,12 +346,12 @@ export default function TasksPage() {
                 if (data === '[DONE]') {
                   break;
                 }
-
+                
                 try {
                   const parsed = JSON.parse(data);
                   if (parsed.content) {
                     accumulatedSummary += parsed.content;
-
+                    
                     // Update task with streaming content in real-time
                     if (mountedRef.current) {
                       setTasks((prev) =>
@@ -636,13 +636,13 @@ export default function TasksPage() {
           {/* View Toggle Buttons */}
           <div style={{ display: 'flex', background: 'var(--panel)', borderRadius: '8px', padding: '4px', border: '1px solid var(--border)' }}>
             <button
-              style={{
-                padding: '8px 16px',
-                borderRadius: '6px',
-                fontWeight: '500',
-                fontSize: '14px',
+              style={{ 
+                padding: '8px 16px', 
+                borderRadius: '6px', 
+                fontWeight: '500', 
+                fontSize: '14px', 
                 border: 'none',
-                background: 'transparent',
+                background: 'transparent', 
                 color: 'var(--muted)',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease'
@@ -654,13 +654,13 @@ export default function TasksPage() {
               List View
             </button>
             <button
-              style={{
-                padding: '8px 16px',
-                borderRadius: '6px',
-                fontWeight: '500',
-                fontSize: '14px',
+              style={{ 
+                padding: '8px 16px', 
+                borderRadius: '6px', 
+                fontWeight: '500', 
+                fontSize: '14px', 
                 border: 'none',
-                background: 'linear-gradient(180deg, #1f6feb, #1a5fc9)',
+                background: 'linear-gradient(180deg, #1f6feb, #1a5fc9)', 
                 color: 'white',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease'
@@ -757,11 +757,11 @@ export default function TasksPage() {
             <button
               onClick={addTask}
               type="button"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 20px',
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '10px 20px', 
                 whiteSpace: 'nowrap',
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 color: 'white',
@@ -796,12 +796,12 @@ export default function TasksPage() {
         </div>
 
         {error && (
-          <div style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '8px',
-            padding: '16px',
-            marginBottom: '24px'
+          <div style={{ 
+            background: 'rgba(239, 68, 68, 0.1)', 
+            border: '1px solid rgba(239, 68, 68, 0.3)', 
+            borderRadius: '8px', 
+            padding: '16px', 
+            marginBottom: '24px' 
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span style={{ fontSize: '20px' }}>⚠️</span>
@@ -816,12 +816,12 @@ export default function TasksPage() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div
+          <div 
             className="kanban-columns"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '20px',
+            style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(3, 1fr)', 
+              gap: '20px', 
               paddingBottom: '32px',
               width: '100%'
             }}
@@ -841,22 +841,22 @@ export default function TasksPage() {
 
           {typeof window !== "undefined"
             ? createPortal(
-              <DragOverlay>
-                {activeTask ? (
-                  <div className="github-card" style={{ padding: '16px', boxShadow: '0 8px 24px rgba(2,6,23,0.4)', transform: 'rotate(2deg)' }}>
-                    <div style={{ fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' }}>
-                      {activeTask.title}
+                <DragOverlay>
+                  {activeTask ? (
+                    <div className="github-card" style={{ padding: '16px', boxShadow: '0 8px 24px rgba(2,6,23,0.4)', transform: 'rotate(2deg)' }}>
+                      <div style={{ fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' }}>
+                        {activeTask.title}
+                      </div>
+                      {activeTask.description && (
+                        <p style={{ fontSize: '14px', color: 'var(--muted)', margin: '0' }}>
+                          {activeTask.description}
+                        </p>
+                      )}
                     </div>
-                    {activeTask.description && (
-                      <p style={{ fontSize: '14px', color: 'var(--muted)', margin: '0' }}>
-                        {activeTask.description}
-                      </p>
-                    )}
-                  </div>
-                ) : null}
-              </DragOverlay>,
-              document.body,
-            )
+                  ) : null}
+                </DragOverlay>,
+                document.body,
+              )
             : null}
         </DndContext>
       </div>
@@ -873,13 +873,13 @@ export default function TasksPage() {
         {/* View Toggle Buttons */}
         <div style={{ display: 'flex', background: 'var(--panel)', borderRadius: '8px', padding: '4px', border: '1px solid var(--border)' }}>
           <button
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              fontWeight: '500',
-              fontSize: '14px',
+            style={{ 
+              padding: '8px 16px', 
+              borderRadius: '6px', 
+              fontWeight: '500', 
+              fontSize: '14px', 
               border: 'none',
-              background: 'linear-gradient(180deg, #1f6feb, #1a5fc9)',
+              background: 'linear-gradient(180deg, #1f6feb, #1a5fc9)', 
               color: 'white',
               cursor: 'pointer',
               transition: 'all 0.15s ease'
@@ -889,13 +889,13 @@ export default function TasksPage() {
             List View
           </button>
           <button
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              fontWeight: '500',
-              fontSize: '14px',
+            style={{ 
+              padding: '8px 16px', 
+              borderRadius: '6px', 
+              fontWeight: '500', 
+              fontSize: '14px', 
               border: 'none',
-              background: 'transparent',
+              background: 'transparent', 
               color: 'var(--muted)',
               cursor: 'pointer',
               transition: 'all 0.15s ease'
@@ -1004,12 +1004,12 @@ export default function TasksPage() {
       </div>
 
       {error && (
-        <div style={{
-          background: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          borderRadius: '8px',
-          padding: '16px',
-          marginBottom: '24px'
+        <div style={{ 
+          background: 'rgba(239, 68, 68, 0.1)', 
+          border: '1px solid rgba(239, 68, 68, 0.3)', 
+          borderRadius: '8px', 
+          padding: '16px', 
+          marginBottom: '24px' 
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '20px' }}>⚠️</span>
@@ -1056,9 +1056,9 @@ export default function TasksPage() {
                         e.target.checked ? "completed" : "pending",
                       )
                     }
-                    style={{
-                      width: '18px',
-                      height: '18px',
+                    style={{ 
+                      width: '18px', 
+                      height: '18px', 
                       cursor: 'pointer',
                       accentColor: 'var(--accent)'
                     }}
@@ -1107,8 +1107,8 @@ export default function TasksPage() {
                         <>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                             {task.status === "in_progress" && (
-                              <span style={{
-                                fontSize: '18px',
+                              <span style={{ 
+                                fontSize: '18px', 
                                 animation: 'spin 2s linear infinite',
                                 display: 'inline-block'
                               }}>
@@ -1116,7 +1116,7 @@ export default function TasksPage() {
                               </span>
                             )}
                             {task.status === "completed" && (
-                              <span style={{
+                              <span style={{ 
                                 fontSize: '18px',
                                 color: '#10b981',
                                 fontWeight: 'bold'
@@ -1171,7 +1171,7 @@ export default function TasksPage() {
                           borderRadius: '6px',
                           fontSize: '12px',
                           fontWeight: '600',
-                          background: task.status === "pending"
+                          background: task.status === "pending" 
                             ? 'rgba(59, 130, 246, 0.1)'
                             : task.status === "in_progress"
                               ? 'rgba(245, 158, 11, 0.1)'
@@ -1272,12 +1272,12 @@ export default function TasksPage() {
 
                   {/* AI Summary for completed tasks */}
                   {task.status === "completed" && (
-                    <div style={{
-                      marginTop: '16px',
-                      padding: '14px',
-                      background: 'rgba(16, 185, 129, 0.08)',
-                      border: '1px solid rgba(16, 185, 129, 0.2)',
-                      borderRadius: '6px'
+                    <div style={{ 
+                      marginTop: '16px', 
+                      padding: '14px', 
+                      background: 'rgba(16, 185, 129, 0.08)', 
+                      border: '1px solid rgba(16, 185, 129, 0.2)', 
+                      borderRadius: '6px' 
                     }}>
                       {generatingSummary === task._id ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1484,8 +1484,8 @@ function TaskCard({
         <div style={{ flex: '1' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
             {task.status === "in_progress" && (
-              <span style={{
-                fontSize: '16px',
+              <span style={{ 
+                fontSize: '16px', 
                 animation: 'spin 2s linear infinite',
                 display: 'inline-block'
               }}>
@@ -1493,7 +1493,7 @@ function TaskCard({
               </span>
             )}
             {task.status === "completed" && (
-              <span style={{
+              <span style={{ 
                 fontSize: '16px',
                 color: '#10b981',
                 fontWeight: 'bold'
@@ -1644,12 +1644,12 @@ function TaskCard({
 
       <AnimatePresence>
         {task.status === "completed" && (
-          <div style={{
-            marginTop: '12px',
-            padding: '12px',
-            background: 'rgba(16, 185, 129, 0.08)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
-            borderRadius: '6px'
+          <div style={{ 
+            marginTop: '12px', 
+            padding: '12px', 
+            background: 'rgba(16, 185, 129, 0.08)', 
+            border: '1px solid rgba(16, 185, 129, 0.2)', 
+            borderRadius: '6px' 
           }}>
             {generatingSummary === task._id ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

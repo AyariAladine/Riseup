@@ -9,8 +9,8 @@ export async function GET(req, { params }) {
     const rl = rateLimit(`tasks:get:${ip}`, 60, 60 * 1000);
     if (!rl.ok) return new Response(JSON.stringify({ message: 'Too many requests' }), { status: 429 });
 
-    const { user } = await getUserFromRequest(req);
-    const { id } = await params;
+  const { user } = await getUserFromRequest(req);
+  const { id } = await params;
     const task = await Task.findOne({ _id: id, userId: user._id.toString() });
     if (!task) return new Response(JSON.stringify({ message: 'Not found' }), { status: 404 });
     return new Response(JSON.stringify({ task }), { status: 200 });
@@ -27,8 +27,8 @@ export async function PATCH(req, { params }) {
     const rl = rateLimit(`tasks:update:${ip}`, 60, 60 * 1000);
     if (!rl.ok) return new Response(JSON.stringify({ message: 'Too many requests' }), { status: 429 });
 
-    const { user } = await getUserFromRequest(req);
-    const { id } = TaskIdParamSchema.parse(await params);
+  const { user } = await getUserFromRequest(req);
+  const { id } = TaskIdParamSchema.parse(await params);
     const json = await req.json();
     const parsed = TaskUpdateSchema.safeParse(json);
     if (!parsed.success) {
@@ -61,8 +61,8 @@ export async function DELETE(req, { params }) {
     const rl = rateLimit(`tasks:delete:${ip}`, 60, 60 * 1000);
     if (!rl.ok) return new Response(JSON.stringify({ message: 'Too many requests' }), { status: 429 });
 
-    const { user } = await getUserFromRequest(req);
-    const { id } = await params;
+  const { user } = await getUserFromRequest(req);
+  const { id } = await params;
     const task = await Task.findOneAndDelete({ _id: id, userId: user._id.toString() });
     if (!task) return new Response(JSON.stringify({ message: 'Not found' }), { status: 404 });
     return new Response(null, { status: 204 });
