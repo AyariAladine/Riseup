@@ -16,43 +16,38 @@ export async function POST(request: Request) {
 
     await connectToDatabase();
 
-    // Check if subscription already exists
-    const existingSubscription = await Subscription.findOne({ 
-      fcmToken: token 
-    });
-
-    if (existingSubscription) {
-      // Update userId if provided
-      if (userId && existingSubscription.user !== userId) {
-        existingSubscription.user = userId;
-        existingSubscription.updatedAt = new Date();
-        await existingSubscription.save();
+    // Use upsert to avoid duplicate key errors
+    const result = await Subscription.findOneAndUpdate(
+      { fcmToken: token },
+      {
+        $set: {
+          user: userId,
+          fcmToken: token,
+          type: 'firebase',
+          updatedAt: new Date(),
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+        }
+      },
+      { 
+        upsert: true, 
+        new: true,
+        setDefaultsOnInsert: true 
       }
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Subscription already exists' 
-      });
-    }
-
-    // Create new subscription
-    const newSubscription = new Subscription({
-      user: userId,
-      fcmToken: token,
-      type: 'firebase',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    await newSubscription.save();
+    );
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Subscription saved successfully' 
+      message: 'Subscription saved successfully',
+      subscription: result
     });
   } catch (error) {
     console.error('Error saving Firebase subscription:', error);
+    const details =
+      error instanceof Error ? error.message : typeof error === 'string' ? error : String(error);
     return NextResponse.json(
-      { error: 'Failed to save subscription' },
+      { error: 'Failed to save subscription', details },
       { status: 500 }
     );
   }

@@ -154,34 +154,7 @@ export default function Header() {
             <div style={{ width: 100, height: 32, background: 'var(--panel)', borderRadius: 16, animation: 'pulse 1.5s ease-in-out infinite' }} />
           ) : localUser ? (
             <>
-              {/* Online/Offline Status Indicator */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '6px', 
-                padding: '6px 12px', 
-                background: isOnline ? 'rgba(16, 185, 129, 0.1)' : 'rgba(107, 114, 128, 0.1)',
-                border: `1px solid ${isOnline ? 'rgba(16, 185, 129, 0.3)' : 'rgba(107, 114, 128, 0.3)'}`,
-                borderRadius: '16px',
-                marginRight: '12px'
-              }}>
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: isOnline ? '#10b981' : '#6b7280',
-                  boxShadow: isOnline ? '0 0 8px rgba(16, 185, 129, 0.5)' : 'none',
-                  animation: isOnline ? 'pulse 2s ease-in-out infinite' : 'none'
-                }} />
-                <span style={{ 
-                  fontSize: '12px', 
-                  fontWeight: 600,
-                  color: isOnline ? '#10b981' : '#6b7280'
-                }}>
-                  {isOnline ? 'Online' : 'Offline'}
-                </span>
-              </div>
-
+      
               <div className="github-user-menu" ref={menuRef}>
                 <button 
                   aria-haspopup="menu" 
@@ -191,7 +164,14 @@ export default function Header() {
                 >
                   <div className="github-avatar" style={{ position: 'relative' }}>
                     {localUser.avatar ? (
-                      <Image src={localUser.avatar} alt="avatar" width={32} height={32} className="github-avatar-img" />
+                      <Image 
+                        src={localUser.avatar} 
+                        alt="avatar" 
+                        width={32} 
+                        height={32} 
+                        className="github-avatar-img"
+                        unoptimized={localUser.avatar.startsWith('data:')}
+                      />
                     ) : (
                       <div className="github-avatar-fallback">{localUser.name?.slice(0,1).toUpperCase() || 'U'}</div>
                     )}

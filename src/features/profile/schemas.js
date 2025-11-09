@@ -4,9 +4,13 @@ export const ProfileUpdateSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(80).optional(),
   password: z.string().min(8, 'Password must be at least 8 characters').optional(),
   currentPassword: z.string().min(1).optional(),
-  avatar: z.string().url().or(z.string().startsWith('data:image/')).optional(),
+  avatar: z.string().url().or(z.string().startsWith('data:image/')).or(z.literal('')).optional(),
   preferences: z
-    .object({ theme: z.enum(['system', 'light', 'dark']).optional(), emailNotifications: z.boolean().optional() })
+    .object({ 
+      theme: z.enum(['system', 'light', 'dark']).optional(), 
+      emailNotifications: z.boolean().optional(),
+      isOnline: z.boolean().optional()
+    })
     .partial()
     .optional(),
 });

@@ -13,6 +13,9 @@ export async function GET(req) {
     await connectToDatabase();
     const { user } = await getUserFromRequest(req);
     if (!user) return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
+    
+    console.log('GET /api/profile - User avatar:', user.avatar ? `Yes (${user.avatar.length} chars)` : 'No');
+    
     return new Response(
       JSON.stringify({
         user: {
@@ -27,6 +30,7 @@ export async function GET(req) {
       { status: 200 }
     );
   } catch (err) {
+    console.error('GET /api/profile error:', err);
     return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
   }
 }
@@ -35,31 +39,85 @@ export async function PATCH(req) {
   try {
     await connectToDatabase();
     const { user } = await getUserFromRequest(req);
+    
+    if (!user) {
+      return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
+    }
+    
     const body = await req.json();
     const parsed = ProfileUpdateSchema.safeParse(body);
-    if (!parsed.success) return new Response(JSON.stringify({ message: 'Validation error', errors: parsed.error.flatten() }), { status: 400 });
+    
+    if (!parsed.success) {
+      console.error('Validation error:', parsed.error.flatten());
+      return new Response(JSON.stringify({ message: 'Validation error', errors: parsed.error.flatten() }), { status: 400 });
+    }
+    
+    console.log('Profile update request:', {
+      name: parsed.data.name,
+      hasAvatar: !!parsed.data.avatar,
+      avatarLength: parsed.data.avatar?.length,
+      preferences: parsed.data.preferences
+    });
+    
     const update = {};
     if (parsed.data.name !== undefined) update.name = parsed.data.name.trim();
+    
     let passwordChanged = false;
     if (parsed.data.password !== undefined) {
       // require currentPassword to change password
-      if (!parsed.data.currentPassword) return new Response(JSON.stringify({ message: 'Current password required' }), { status: 400 });
+      if (!parsed.data.currentPassword) {
+        return new Response(JSON.stringify({ message: 'Current password required' }), { status: 400 });
+      }
       const ok = await bcrypt.compare(parsed.data.currentPassword, user.password);
-      if (!ok) return new Response(JSON.stringify({ message: 'Current password is incorrect' }), { status: 400 });
+      if (!ok) {
+        return new Response(JSON.stringify({ message: 'Current password is incorrect' }), { status: 400 });
+      }
       update.password = await bcrypt.hash(parsed.data.password, 10);
       passwordChanged = true;
     }
+    
     if (parsed.data.avatar !== undefined) update.avatar = parsed.data.avatar;
-    if (parsed.data.preferences !== undefined) update.preferences = { ...user.preferences?.toObject?.() ?? user.preferences ?? {}, ...parsed.data.preferences };
+    if (parsed.data.preferences !== undefined) {
+      update.preferences = { 
+        ...user.preferences?.toObject?.() ?? user.preferences ?? {}, 
+        ...parsed.data.preferences 
+      };
+    }
+    
+    console.log('Update object:', {
+      ...update,
+      avatar: update.avatar ? `(${update.avatar.length} chars)` : 'none'
+    });
+    
     // Update user in Better Auth's user collection
     const db = await connectToDatabase();
     const userCollection = db.collection('user'); // Better Auth uses 'user' (singular)
-    await userCollection.updateOne(
+    
+    const updateResult = await userCollection.updateOne(
       { email: user.email },
       { $set: { ...update, updatedAt: new Date() } }
     );
+    
+    console.log('Update result:', {
+      matched: updateResult.matchedCount,
+      modified: updateResult.modifiedCount
+    });
+    
+    if (updateResult.matchedCount === 0) {
+      console.error('User not found for update:', user.email);
+      return new Response(JSON.stringify({ message: 'User not found' }), { status: 404 });
+    }
+    
     // Fetch updated user
     const updated = await userCollection.findOne({ email: user.email });
+    
+    if (!updated) {
+      console.error('Could not fetch updated user:', user.email);
+      return new Response(JSON.stringify({ message: 'Failed to fetch updated user' }), { status: 500 });
+    }
+    
+    console.log('Updated user avatar:', updated.avatar ? `Yes (${updated.avatar.length} chars)` : 'No');
+    
     // Send password change email if password was changed
     if (passwordChanged && process.env.GMAIL_USER && process.env.GMAIL_PASS) {
       try {
@@ -88,6 +146,9 @@ export async function PATCH(req) {
         console.error('❌ Failed to send password change email:', emailError?.message || emailError);
       }
     }
+    
+    console.log('✅ Profile updated successfully for:', updated.email);
+    
     return new Response(
       JSON.stringify({
         user: {
@@ -102,8 +163,14 @@ export async function PATCH(req) {
       { status: 200 }
     );
   } catch (err) {
-    console.error(err);
-    return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
+    console.error('❌ Profile update error:', err);
+    return new Response(
+      JSON.stringify({ 
+        message: 'Failed to update profile',
+        error: err.message 
+      }), 
+      { status: 500 }
+    );
   }
 }
 

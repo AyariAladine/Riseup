@@ -1,6 +1,8 @@
 
 
 import { connectToDatabase } from '@/lib/mongodb';
+import User from '@/models/User';
+
 import { getUserFromRequest } from '@/lib/auth';
 
 export async function GET(req) {

@@ -63,10 +63,15 @@ export async function POST(request) {
       throw new Error(`AI service error: ${response.status} - ${JSON.stringify(errorData)}`);
     }
 
-    const recommendations = await response.json();
-    console.log('AI recommendations received:', recommendations);
+    const data = await response.json();
+    console.log('AI recommendations received:', data);
 
-    return NextResponse.json(recommendations, { status: 200 });
+    // Map to dashboard shape while preserving original fields
+    const plan = Array.isArray(data?.tasks)
+      ? data.tasks.map((t) => ({ title: t.title, minutes: t.minutes, details: t.details || t.difficulty }))
+      : [];
+
+    return NextResponse.json({ ...data, plan, source: 'lightfm' }, { status: 200 });
   } catch (error) {
     console.error('AI Recommendation error:', error);
     return NextResponse.json({ 

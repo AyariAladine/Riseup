@@ -70,8 +70,8 @@ export async function POST(request) {
     // Create new task with due date
     const parsedDue = dueDate ? new Date(dueDate) : null;
     const newTask = await Task.create({
-      user: user._id,  // ObjectId reference (required)
-      userId: user._id.toString(),  // String version (required)
+      user: user._id,  // String for better-auth (keep for backward compatibility)
+      userId: user._id,  // String version (primary field for better-auth)
       title: task.title,
       description: task.description,
       difficulty: task.difficulty,

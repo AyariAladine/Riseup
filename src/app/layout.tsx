@@ -5,9 +5,6 @@ import ConditionalHeader from '@/components/ConditionalHeader';
 import ConditionalFooter from '@/components/ConditionalFooter';
 import ClientProviders from '@/components/ClientProviders';
 import SWRProvider from '@/components/SWRProvider';
-// Import a thin client-only wrapper for BottomBar. This keeps the server
-// layout as a Server Component while allowing BottomBar to run on the client.
-import BottomBarClient from '@/components/BottomBarClient';
 import FirebasePushSubscriber from '@/components/FirebasePushSubscriber';
 
 const geistSans = Geist({
@@ -77,8 +74,6 @@ export default function RootLayout({
           <main className="container" style={{ maxWidth: '100%', width: '100%' }}>
             <div style={{ width: '100%' }}>{children}</div>
           </main>
-          {/* Mobile bottom navigation (fixed). Visible under 720px width. */}
-          <BottomBarClient />
           <ConditionalFooter />
         </SWRProvider>
       </body>

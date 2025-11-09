@@ -9,7 +9,7 @@ export default function BottomBar() {
     { href: '/dashboard/tasks', label: 'Tasks', icon: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L20 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.2"/></svg>) },
     { href: '/dashboard/assistant', label: 'Bot', icon: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.2"/><path d="M8 12h8M9 15h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>) },
     { href: '/learn', label: 'Learn', icon: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4z" stroke="currentColor" strokeWidth="1.2"/><path d="M8 10h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>) },
-  { href: '/dashboard/premium', label: 'Premium', icon: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.39 4.84L20 8l-4 3.9L17 18l-5-2.6L7 18l1-6.1L4 8l5.61-1.16L12 2z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>) },
+    { href: '/leaderboard', label: 'Ranks', icon: (<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7l2-7z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>) },
   ];
 
   return (

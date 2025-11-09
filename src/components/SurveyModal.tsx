@@ -160,42 +160,44 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
         .survey-backdrop {
           position: absolute;
           inset: 0;
-          background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(236, 72, 153, 0.4), rgba(59, 130, 246, 0.4));
-          backdrop-filter: blur(8px);
+          background: rgba(13, 17, 23, 0.85);
+          backdrop-filter: blur(12px);
         }
         
         .survey-modal-container {
           position: relative;
           width: 100%;
           max-width: 48rem;
-          background: white;
-          border-radius: 1.5rem;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          background: #0d1117;
+          border: 1px solid rgba(88, 166, 255, 0.2);
+          border-radius: 1rem;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(88, 166, 255, 0.1);
           overflow: hidden;
           animation: surveyScaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         
         .survey-header {
           position: relative;
-          background: linear-gradient(90deg, #a855f7, #ec4899, #3b82f6);
-          padding: 1.5rem;
+          background: linear-gradient(135deg, rgba(88, 166, 255, 0.15), rgba(139, 92, 246, 0.15));
+          padding: 2rem;
+          border-bottom: 1px solid rgba(88, 166, 255, 0.2);
         }
         
         .survey-icon-container {
           width: 4rem;
           height: 4rem;
-          background: white;
+          background: linear-gradient(135deg, #58a6ff, #8b5cf6);
           border-radius: 1rem;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 10px 25px rgba(88, 166, 255, 0.3);
           animation: surveyFloat 3s ease-in-out infinite;
         }
         
         .survey-progress-bg {
-          height: 0.75rem;
-          background: rgba(255, 255, 255, 0.2);
+          height: 0.5rem;
+          background: rgba(88, 166, 255, 0.2);
           border-radius: 9999px;
           overflow: hidden;
           backdrop-filter: blur(4px);
@@ -204,16 +206,14 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
         .survey-progress-fill {
           height: 100%;
           border-radius: 9999px;
-          background: linear-gradient(90deg, #f59e0b, #ef4444, #ec4899, #8b5cf6, #3b82f6);
-          background-size: 200% 100%;
-          animation: surveyShimmer 3s linear infinite;
+          background: linear-gradient(90deg, #58a6ff, #8b5cf6);
           transition: width 0.5s ease-out;
         }
         
         .survey-content {
-          padding: 2rem;
+          padding: 2.5rem 2rem;
           min-height: 320px;
-          background: linear-gradient(135deg, #f9fafb, #faf5ff);
+          background: #161b22;
         }
         
         .survey-step-forward {
@@ -226,73 +226,79 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
         
         .survey-input {
           width: 100%;
-          padding: 1rem;
+          padding: 1rem 1.25rem;
           font-size: 1.125rem;
-          border-radius: 1rem;
-          border: 2px solid #e5e7eb;
-          background: white;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          border-radius: 0.75rem;
+          border: 1px solid rgba(88, 166, 255, 0.2);
+          background: #0d1117;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
           transition: all 0.3s ease;
-          color: #1f2937;
+          color: #e6edf3;
+        }
+        
+        .survey-input::placeholder {
+          color: #7d8590;
         }
         
         .survey-input:focus {
           outline: none;
-          border-color: #a855f7;
-          transform: scale(1.01);
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+          border-color: #58a6ff;
+          box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1), 0 10px 15px -3px rgba(0, 0, 0, 0.3);
         }
         
         .survey-option-btn {
           padding: 1.5rem;
-          border-radius: 1rem;
-          border: 2px solid #e5e7eb;
-          background: white;
+          border-radius: 0.75rem;
+          border: 1px solid rgba(88, 166, 255, 0.2);
+          background: #0d1117;
           font-weight: 600;
           font-size: 1.125rem;
           cursor: pointer;
           transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          color: #1f2937;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+          color: #e6edf3;
         }
         
         .survey-option-btn:hover {
           transform: translateY(-4px);
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+          border-color: #58a6ff;
+          box-shadow: 0 10px 15px -3px rgba(88, 166, 255, 0.2);
         }
         
         .survey-option-btn.selected {
           border-color: transparent;
           color: white;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+          box-shadow: 0 20px 25px -5px rgba(88, 166, 255, 0.4);
         }
         
         .survey-lang-chip {
-          padding: 0.5rem 1rem;
+          padding: 0.625rem 1.25rem;
           border-radius: 9999px;
           font-weight: 500;
+          font-size: 0.875rem;
           cursor: pointer;
           transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-          border: 2px solid #e5e7eb;
-          background: white;
-          color: #374151;
+          border: 1px solid rgba(88, 166, 255, 0.2);
+          background: #0d1117;
+          color: #e6edf3;
         }
         
         .survey-lang-chip:hover {
           transform: scale(1.08);
+          border-color: #58a6ff;
         }
         
         .survey-lang-chip.selected {
-          background: linear-gradient(90deg, #a855f7, #ec4899);
+          background: linear-gradient(135deg, #58a6ff, #8b5cf6);
           border-color: transparent;
           color: white;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 4px 6px -1px rgba(88, 166, 255, 0.4);
         }
         
         .survey-footer {
-          padding: 1.5rem;
-          background: white;
-          border-top: 1px solid #e5e7eb;
+          padding: 1.5rem 2rem;
+          background: #0d1117;
+          border-top: 1px solid rgba(88, 166, 255, 0.2);
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -300,17 +306,18 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
         
         .survey-btn {
           padding: 0.75rem 1.5rem;
-          border-radius: 0.75rem;
+          border-radius: 0.5rem;
           font-weight: 600;
+          font-size: 0.875rem;
           cursor: pointer;
           transition: all 0.2s ease;
           border: none;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
         }
         
         .survey-btn:hover:not(:disabled) {
           transform: translateY(-2px);
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
         }
         
         .survey-btn:active:not(:disabled) {
@@ -318,22 +325,28 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
         }
         
         .survey-btn:disabled {
-          opacity: 0.5;
+          opacity: 0.4;
           cursor: not-allowed;
         }
         
         .survey-btn-gray {
-          background: #f3f4f6;
-          color: #374151;
+          background: rgba(88, 166, 255, 0.1);
+          color: #e6edf3;
+          border: 1px solid rgba(88, 166, 255, 0.2);
+        }
+        
+        .survey-btn-gray:hover:not(:disabled) {
+          background: rgba(88, 166, 255, 0.15);
+          border-color: #58a6ff;
         }
         
         .survey-btn-primary {
-          background: linear-gradient(90deg, #a855f7, #ec4899);
+          background: linear-gradient(135deg, #58a6ff, #8b5cf6);
           color: white;
         }
         
         .survey-btn-success {
-          background: linear-gradient(90deg, #10b981, #059669);
+          background: linear-gradient(135deg, #3fb950, #10b981);
           color: white;
         }
       `;
@@ -352,7 +365,7 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
       case 0:
         return (
           <div key={currentStep} className={stepClass}>
-            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#e6edf3', marginBottom: '1rem' }}>
               🎂 How old are you?
             </label>
             <input 
@@ -362,7 +375,6 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
               className="survey-input"
               placeholder="Enter your age"
               autoFocus
-              style={{ borderColor: '#c084fc' }}
             />
           </div>
         );
@@ -370,7 +382,7 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
       case 1:
         return (
           <div key={currentStep} className={stepClass}>
-            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#e6edf3', marginBottom: '1rem' }}>
               💻 Years of coding experience?
             </label>
             <input 
@@ -381,7 +393,6 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
               className="survey-input"
               placeholder="0 if you're just starting"
               autoFocus
-              style={{ borderColor: '#60a5fa' }}
             />
           </div>
         );
@@ -389,7 +400,7 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
       case 2:
         return (
           <div key={currentStep} className={stepClass}>
-            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#e6edf3', marginBottom: '1rem' }}>
               🚀 What's your experience level?
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
@@ -415,7 +426,7 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
       case 3:
         return (
           <div key={currentStep} className={stepClass}>
-            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#e6edf3', marginBottom: '1rem' }}>
               📦 Projects completed?
             </label>
             <input 
@@ -433,7 +444,7 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
       case 4:
         return (
           <div key={currentStep} className={stepClass}>
-            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#e6edf3', marginBottom: '1rem' }}>
               🎯 Willing to learn new things?
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
@@ -458,7 +469,7 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
       case 5:
         return (
           <div key={currentStep} className={stepClass}>
-            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#e6edf3', marginBottom: '1rem' }}>
               🌐 Languages you want to learn? (Select multiple)
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -478,7 +489,7 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
       case 6:
         return (
           <div key={currentStep} className={stepClass}>
-            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#e6edf3', marginBottom: '1rem' }}>
               ⭐ Primary language interest?
             </label>
             <select
@@ -498,7 +509,7 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
       case 7:
         return (
           <div key={currentStep} className={stepClass}>
-            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#e6edf3', marginBottom: '1rem' }}>
               ⚡ Your activity level?
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
@@ -524,7 +535,7 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
       case 8:
         return (
           <div key={currentStep} className={stepClass}>
-            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#e6edf3', marginBottom: '1rem' }}>
               ⏰ Hours per week to dedicate?
             </label>
             <input 
@@ -542,7 +553,7 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
       case 9:
         return (
           <div key={currentStep} className={stepClass}>
-            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '1.125rem', fontWeight: 'bold', color: '#e6edf3', marginBottom: '1rem' }}>
               💪 Your commitment level?
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
@@ -583,8 +594,8 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
                 <span style={{ fontSize: '2.5rem' }}>🚀</span>
               </div>
               <div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white', margin: 0 }}>Quick Survey</h2>
-                <p style={{ color: '#e9d5ff', margin: '0.25rem 0 0 0' }}>Help us personalize your experience</p>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#e6edf3', margin: 0 }}>Quick Survey</h2>
+                <p style={{ color: '#7d8590', margin: '0.25rem 0 0 0' }}>Help us personalize your experience</p>
               </div>
             </div>
             <button
@@ -613,7 +624,7 @@ export default function SurveyModal({ onComplete, onSkip }: SurveyModalProps) {
 
           {/* Progress Bar */}
           <div style={{ marginTop: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'white', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: '#e6edf3', marginBottom: '0.5rem' }}>
               <span>Step {currentStep + 1} of {totalSteps}</span>
               <span>{Math.round(((currentStep + 1) / totalSteps) * 100)}%</span>
             </div>

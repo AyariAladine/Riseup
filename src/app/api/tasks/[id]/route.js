@@ -2,6 +2,7 @@ import Task from '@/models/Task';
 import { getUserFromRequest } from '@/lib/auth';
 import { rateLimit } from '@/lib/rateLimiter';
 import { TaskUpdateSchema, TaskIdParamSchema } from '@/features/tasks/schemas';
+import { connectToDatabase } from '@/lib/mongodb';
 
 export async function GET(req, { params }) {
   try {
@@ -10,8 +11,10 @@ export async function GET(req, { params }) {
     if (!rl.ok) return new Response(JSON.stringify({ message: 'Too many requests' }), { status: 429 });
 
   const { user } = await getUserFromRequest(req);
+  await connectToDatabase();
   const { id } = await params;
-    const task = await Task.findOne({ _id: id, user: user._id });
+    // Use userId (string) for better-auth compatibility
+    const task = await Task.findOne({ _id: id, userId: user._id });
     if (!task) return new Response(JSON.stringify({ message: 'Not found' }), { status: 404 });
     return new Response(JSON.stringify({ task }), { status: 200 });
   } catch (err) {
@@ -28,6 +31,7 @@ export async function PATCH(req, { params }) {
     if (!rl.ok) return new Response(JSON.stringify({ message: 'Too many requests' }), { status: 429 });
 
   const { user } = await getUserFromRequest(req);
+  await connectToDatabase();
   const { id } = TaskIdParamSchema.parse(await params);
     const json = await req.json();
     const parsed = TaskUpdateSchema.safeParse(json);
@@ -37,10 +41,30 @@ export async function PATCH(req, { params }) {
     const v = parsed.data;
     const update = {};
     if (v.title !== undefined) update.title = v.title;
-    if (v.completed !== undefined) update.completed = v.completed;
+    if (v.completed !== undefined) {
+      update.completed = v.completed;
+      // Sync status with completed field for backwards compatibility
+      update.status = v.completed ? 'completed' : 'pending';
+      if (v.completed) {
+        update.completedAt = new Date();
+      }
+    }
+    if (v.status !== undefined) {
+      console.log(`Updating task ${id} to status: ${v.status}`);
+      update.status = v.status;
+      // Sync completed field with status
+      update.completed = v.status === 'completed';
+      if (v.status === 'completed') {
+        update.completedAt = new Date();
+      }
+    }
     if (v.dueAt !== undefined) update.dueAt = v.dueAt ? new Date(v.dueAt) : null;
 
-    const task = await Task.findOneAndUpdate({ _id: id, user: user._id }, update, { new: true });
+    console.log('Update object:', update);
+    
+    // Use userId (string) for better-auth compatibility
+    const task = await Task.findOneAndUpdate({ _id: id, userId: user._id }, update, { new: true });
+    console.log('Task after update:', task);
     if (!task) return new Response(JSON.stringify({ message: 'Not found' }), { status: 404 });
     return new Response(JSON.stringify({ task }), { status: 200 });
   } catch (err) {
@@ -57,8 +81,10 @@ export async function DELETE(req, { params }) {
     if (!rl.ok) return new Response(JSON.stringify({ message: 'Too many requests' }), { status: 429 });
 
   const { user } = await getUserFromRequest(req);
+  await connectToDatabase();
   const { id } = await params;
-    const task = await Task.findOneAndDelete({ _id: id, user: user._id });
+    // Use userId (string) for better-auth compatibility
+    const task = await Task.findOneAndDelete({ _id: id, userId: user._id });
     if (!task) return new Response(JSON.stringify({ message: 'Not found' }), { status: 404 });
     return new Response(null, { status: 204 });
   } catch (err) {

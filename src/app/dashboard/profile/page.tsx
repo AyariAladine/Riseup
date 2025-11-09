@@ -60,9 +60,26 @@ export default function DashboardProfile() {
   const [submittingReclamation, setSubmittingReclamation] = useState(false);
   const [editingReclamationId, setEditingReclamationId] = useState<string | null>(null);
 
+  // Learning profile state
+  const [learningProfile, setLearningProfile] = useState<any | null>(null);
+  const [learningProfileEdit, setLearningProfileEdit] = useState(false);
+  const [lpMessage, setLPMessage] = useState('');
+  const [lpSaving, setLPSaving] = useState(false);
+  
+  // NFT Badges state
+  const [nftBadges, setNftBadges] = useState<any[]>([]);
+  const [loadingBadges, setLoadingBadges] = useState(true);
+
+  const PROGRAMMING_LANGUAGES = ["JavaScript", "Python", "Java", "C++", "C#", "Ruby", "Go", "Rust", "Swift", "Kotlin", "TypeScript", "PHP", "Dart", "Scala", "R"];
+
+  // Editable form state mirrors LP fields
+  const [lpFields, setLPFields] = useState<any|null>(null);
+
   // Update local state when cached profile data changes
   useEffect(() => {
     if (profile) {
+      console.log('Profile loaded:', profile);
+      console.log('Avatar from profile:', profile.avatar);
       setName(profile.name || '');
       setEmail(profile.email || '');
       setAvatar(profile.avatar || '');
@@ -86,6 +103,57 @@ export default function DashboardProfile() {
       setTwoFactorEnabled(!!(session.user as any).twoFactorEnabled);
     }
   }, [session]);
+
+  // Fetch learning profile once
+  useEffect(() => {
+    async function fetchProfile() {
+      setLPMessage('');
+      try {
+        const res = await fetch('/api/onboarding', { method:'GET', credentials:'include' });
+        if (!res.ok) throw new Error('Failed to fetch learning profile');
+        const data = await res.json();
+        setLearningProfile(data.profile || null);
+      } catch (e) {
+        setLearningProfile(null);
+        setLPMessage('Could not load learning profile.');
+      }
+    }
+    fetchProfile();
+  }, []);
+  
+  // Fetch NFT badges/achievements from user achievements
+  useEffect(() => {
+    async function fetchNFTBadges() {
+      try {
+        const res = await fetch('/api/achievements/user', { credentials: 'include' });
+        if (!res.ok) throw new Error('Failed to fetch achievements');
+        const data = await res.json();
+        // Convert achievements to badge format for display
+        const badges = (data.achievements || []).map((achievement: any) => ({
+          _id: achievement._id,
+          title: achievement.challengeTitle || 'Challenge Completed',
+          score: achievement.score,
+          nftTokenId: achievement.nftTokenId,
+          nftBadgeId: achievement.transactionHash?.split('@')[1] || '1',
+          language: achievement.language,
+          badge: achievement.badge,
+          unlockedAt: achievement.unlockedAt
+        }));
+        setNftBadges(badges);
+      } catch (e) {
+        console.error('Could not load achievements:', e);
+        setNftBadges([]);
+      } finally {
+        setLoadingBadges(false);
+      }
+    }
+    fetchNFTBadges();
+  }, []);
+
+  // Initialize lpFields when learningProfile changes
+  useEffect(() => {
+    if (learningProfile) setLPFields({ ...learningProfile });
+  }, [learningProfile]);
 
   // Face verification for sensitive operations
   const { isModalOpen, openVerification, closeVerification, handleVerified, verifyWithFace } = useFaceVerification();
@@ -272,6 +340,8 @@ export default function DashboardProfile() {
     setSaving(true);
     setMessage('');
     try {
+      console.log('Saving profile with avatar:', avatar ? 'Yes (length: ' + avatar.length + ')' : 'No');
+      
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -282,10 +352,24 @@ export default function DashboardProfile() {
           preferences: { theme, emailNotifications, isOnline },
         }),
       });
+      
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Update failed');
-      setMessage('Profile updated');
+      
+      if (!res.ok) {
+        console.error('Profile update failed:', data);
+        throw new Error(data.message || data.error || 'Update failed');
+      }
+      
+      console.log('Profile update response:', data);
+      console.log('Saved avatar:', data.user?.avatar ? 'Yes (length: ' + data.user.avatar.length + ')' : 'No');
+      
+      setMessage('✅ Profile updated successfully!');
       setName(data.user?.name || name);
+      
+      // Update avatar from response
+      if (data.user?.avatar) {
+        setAvatar(data.user.avatar);
+      }
       
       // Update the SWR cache with new data
       mutateProfile();
@@ -306,7 +390,8 @@ export default function DashboardProfile() {
       } catch {}
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setMessage(msg);
+      console.error('Profile update error:', err);
+      setMessage('❌ ' + msg);
     } finally {
       setSaving(false);
     }
@@ -464,6 +549,34 @@ export default function DashboardProfile() {
     setShowReclamationForm(false);
   }
 
+  // Learning profile save function
+  async function saveLearningProfile() {
+    if (!lpFields) return;
+    setLPSaving(true);
+    setLPMessage('');
+    try {
+      const res = await fetch('/api/onboarding', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(lpFields),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update learning profile');
+      }
+      const data = await res.json();
+      setLearningProfile(data.profile || lpFields);
+      setLearningProfileEdit(false);
+      setLPMessage('✅ Learning profile updated!');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setLPMessage(`❌ ${msg}`);
+    } finally {
+      setLPSaving(false);
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return '#f59e0b';
@@ -596,7 +709,14 @@ export default function DashboardProfile() {
                   zIndex: 1
                 }}>
                   {avatar ? (
-                    <Image src={avatar} alt="avatar" fill sizes="56px" style={{ objectFit: 'cover' }} />
+                    <Image 
+                      src={avatar} 
+                      alt="avatar" 
+                      fill 
+                      sizes="56px" 
+                      style={{ objectFit: 'cover' }}
+                      unoptimized={avatar.startsWith('data:')}
+                    />
                   ) : (
                     <div style={{ 
                       width: '100%', 
@@ -1072,16 +1192,302 @@ export default function DashboardProfile() {
         </div>
         </div>
 
-        {/* Right Column - Achievements & NFTs Placeholder */}
+        {/* Right Column - Learning Profile & Achievements */}
         <div>
-          <div className="github-card" style={{ padding: '20px', minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
-            <div style={{ textAlign: 'center' }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ margin: '0 auto 12px', opacity: 0.3 }}>
+          {/* Learning Profile Card */}
+          {learningProfile && (
+            <div className="github-card" style={{ padding: '20px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Learning Profile</h3>
+                <button 
+                  className="github-btn" 
+                  onClick={() => setLearningProfileEdit(!learningProfileEdit)}
+                  disabled={lpSaving}
+                >
+                  {learningProfileEdit ? 'Cancel' : 'Edit'}
+                </button>
+              </div>
+
+              {lpMessage && (
+                <div className={lpMessage.startsWith('✅') ? 'github-alert-success' : 'github-alert-error'} style={{ marginBottom: '12px' }}>
+                  {lpMessage}
+                </div>
+              )}
+
+              {!learningProfileEdit ? (
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <div>
+                    <div className="small muted">Experience Level (Read-only)</div>
+                    <div style={{ fontWeight: 500, textTransform: 'capitalize' }}>{learningProfile.codingExperience}</div>
+                  </div>
+                  <div>
+                    <div className="small muted">Skill Level (Read-only)</div>
+                    <div style={{ fontWeight: 500 }}>{learningProfile.skillLevel}/10</div>
+                  </div>
+                  {learningProfile.preferredLanguages && learningProfile.preferredLanguages.length > 0 && (
+                    <div>
+                      <div className="small muted">Preferred Languages</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                        {learningProfile.preferredLanguages.map((lang: string) => (
+                          <span key={lang} style={{ 
+                            padding: '2px 8px', 
+                            background: 'rgba(59, 130, 246, 0.1)', 
+                            color: '#3b82f6', 
+                            borderRadius: '4px', 
+                            fontSize: '12px' 
+                          }}>
+                            {lang}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {learningProfile.hoursPerWeek && (
+                    <div>
+                      <div className="small muted">Hours Per Week</div>
+                      <div style={{ fontWeight: 500 }}>{learningProfile.hoursPerWeek} hours</div>
+                    </div>
+                  )}
+                  {learningProfile.age && (
+                    <div>
+                      <div className="small muted">Age</div>
+                      <div style={{ fontWeight: 500 }}>{learningProfile.age}</div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <form onSubmit={(e) => { e.preventDefault(); saveLearningProfile(); }} style={{ display: 'grid', gap: '12px' }}>
+                  {/* Experience Level - Read Only */}
+                  <div>
+                    <label className="github-label">Experience Level (Read-only)</label>
+                    <input 
+                      type="text" 
+                      className="github-input" 
+                      value={lpFields?.codingExperience || ''} 
+                      disabled
+                      style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                    />
+                  </div>
+
+                  {/* Skill Level - Read Only */}
+                  <div>
+                    <label className="github-label">Skill Level (Read-only)</label>
+                    <input 
+                      type="number" 
+                      className="github-input" 
+                      value={lpFields?.skillLevel || 5} 
+                      disabled
+                      style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                    />
+                  </div>
+
+                  {/* Preferred Languages - Editable */}
+                  <div>
+                    <label className="github-label">Preferred Languages</label>
+                    <select 
+                      className="github-input" 
+                      multiple
+                      value={lpFields?.preferredLanguages || []}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, option => option.value);
+                        setLPFields({ ...lpFields, preferredLanguages: selected });
+                      }}
+                      style={{ minHeight: '100px' }}
+                    >
+                      {PROGRAMMING_LANGUAGES.map(lang => (
+                        <option key={lang} value={lang}>{lang}</option>
+                      ))}
+                    </select>
+                    <div className="small muted" style={{ marginTop: '4px' }}>Hold Ctrl/Cmd to select multiple</div>
+                  </div>
+
+                  {/* Hours Per Week - Editable */}
+                  <div>
+                    <label className="github-label">Hours Per Week</label>
+                    <input 
+                      type="number" 
+                      className="github-input" 
+                      min="1" 
+                      max="168"
+                      value={lpFields?.hoursPerWeek || 5}
+                      onChange={(e) => setLPFields({ ...lpFields, hoursPerWeek: Number(e.target.value) })}
+                    />
+                  </div>
+
+                  {/* Age - Editable */}
+                  <div>
+                    <label className="github-label">Age</label>
+                    <input 
+                      type="number" 
+                      className="github-input" 
+                      min="5" 
+                      max="120"
+                      value={lpFields?.age || ''}
+                      onChange={(e) => setLPFields({ ...lpFields, age: Number(e.target.value) })}
+                    />
+                  </div>
+
+                  <button type="submit" className="github-btn github-btn-primary" disabled={lpSaving}>
+                    {lpSaving ? 'Saving...' : 'Save Learning Profile'}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* Achievements & NFTs Section */}
+          <div className="github-card" style={{ padding: '20px', minHeight: '400px' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }}>
                 <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
               </svg>
-              <div style={{ fontSize: '14px', fontWeight: 500 }}>Achievements & NFTs</div>
-              <div style={{ fontSize: '12px', marginTop: '4px' }}>Coming soon...</div>
+              <span style={{ fontSize: '16px', fontWeight: 600 }}>NFT Badges</span>
+              {!loadingBadges && (
+                <span style={{ marginLeft: '8px', fontSize: '14px', color: 'var(--muted)' }}>
+                  ({nftBadges.length})
+                </span>
+              )}
             </div>
+            
+            {loadingBadges ? (
+              <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '40px 0' }}>
+                <div style={{ fontSize: '14px' }}>Loading badges...</div>
+              </div>
+            ) : nftBadges.length === 0 ? (
+              <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '40px 0' }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ margin: '0 auto 12px', opacity: 0.3 }}>
+                  <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
+                </svg>
+                <div style={{ fontSize: '14px', fontWeight: 500 }}>No badges yet</div>
+                <div style={{ fontSize: '12px', marginTop: '4px' }}>Complete tasks with a score ≥70% to earn NFT badges!</div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
+                {nftBadges.map((achievement: any) => {
+                  // Use badge tier from achievement, or fallback to score calculation
+                  const badgeTier = achievement.badge || (() => {
+                    const score = achievement.score || 0;
+                    if (score >= 90) return 'Diamond';
+                    if (score >= 75) return 'Gold';
+                    if (score >= 70) return 'Silver';
+                    return 'Bronze';
+                  })();
+                  
+                  // Determine badge color based on tier
+                  const getBadgeColor = (tier: string) => {
+                    if (tier === 'Diamond') return '#9333ea'; // Purple
+                    if (tier === 'Gold') return '#f59e0b'; // Amber
+                    if (tier === 'Silver') return '#6b7280'; // Gray
+                    return '#cd7f32'; // Bronze
+                  };
+                  
+                  const badgeColor = getBadgeColor(badgeTier);
+                  
+                  return (
+                    <div
+                      key={achievement._id}
+                      style={{
+                        border: `2px solid ${badgeColor}`,
+                        borderRadius: '8px',
+                        padding: '16px',
+                        background: `linear-gradient(135deg, ${badgeColor}15, transparent)`,
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      {/* Badge icon */}
+                      <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+                        <svg 
+                          width="48" 
+                          height="48" 
+                          viewBox="0 0 24 24" 
+                          fill={badgeColor} 
+                          stroke={badgeColor} 
+                          strokeWidth="1"
+                          style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
+                        >
+                          <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
+                        </svg>
+                      </div>
+                      
+                      {/* Badge tier */}
+                      <div 
+                        style={{ 
+                          textAlign: 'center', 
+                          fontSize: '12px', 
+                          fontWeight: 600, 
+                          color: badgeColor,
+                          marginBottom: '8px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}
+                      >
+                        {badgeTier}
+                      </div>
+                      
+                      {/* Challenge/Task title */}
+                      <div 
+                        style={{ 
+                          fontSize: '14px', 
+                          fontWeight: 500, 
+                          textAlign: 'center',
+                          marginBottom: '8px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical'
+                        }}
+                      >
+                        {achievement.title}
+                      </div>
+                      
+                      {/* Score */}
+                      <div 
+                        style={{ 
+                          textAlign: 'center', 
+                          fontSize: '18px', 
+                          fontWeight: 700,
+                          color: badgeColor,
+                          marginBottom: '8px'
+                        }}
+                      >
+                        {achievement.score}%
+                      </div>
+                      
+                      {/* View on Hedera button */}
+                      {achievement.nftTokenId && achievement.nftBadgeId && (
+                        <a
+                          href={`https://hashscan.io/testnet/token/${achievement.nftTokenId}/${achievement.nftBadgeId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'block',
+                            textAlign: 'center',
+                            fontSize: '11px',
+                            color: badgeColor,
+                            textDecoration: 'none',
+                            marginTop: '8px',
+                            padding: '4px 8px',
+                            border: `1px solid ${badgeColor}40`,
+                            borderRadius: '4px',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = `${badgeColor}20`;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                          }}
+                        >
+                          View on Hedera ↗
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

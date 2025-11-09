@@ -20,6 +20,8 @@ export default function ChallengeBotPage() {
   ]);
   const [focusTask, setFocusTask] = useState<Task | null>(null);
   const [askFocus, setAskFocus] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
   // On mount, check for task in query
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -38,35 +40,20 @@ export default function ChallengeBotPage() {
   async function handleFocusTask(yes: boolean) {
     setAskFocus(false);
     if (yes && focusTask) {
-      // Send a user message to the chatbot to focus on the task
-      const userMsg: ChatMsg = {
-        role: 'user',
-        content: `Please help me focus on this challenge: ${focusTask.title}${focusTask.description ? ' - ' + focusTask.description : ''}`
+      // Send a system message to the assistant to understand this is a task challenge
+      const taskContext = `TASK CHALLENGE: ${focusTask.title}\nDescription: ${focusTask.description || 'No description provided'}\nDifficulty: ${focusTask.difficulty || 'medium'}\n\nInstructions: This is a coding challenge. Wait for the user to provide their solution (code, file, or screenshot). When they submit their answer, grade it based on the task requirements. Provide detailed feedback, score (0-100), and hints if they didn't pass.`;
+      
+      const systemMsg: ChatMsg = {
+        role: 'system',
+        content: taskContext
       };
-      setMessages(prev => [...prev, userMsg]);
-      setBusy(true);
-      try {
-        const fd = new FormData();
-        fd.append('message', userMsg.content);
-        const res = await fetch('/api/assistant/analyze', { method: 'POST', body: fd });
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        const parts: string[] = [];
-        if (data.analysis) parts.push(data.analysis);
-        if (typeof data.score === 'number') parts.push(`Score: ${data.score}/100`);
-        if (typeof data.passed === 'boolean') parts.push(data.passed ? 'Result: Pass (check)' : 'Result: Fail (x)');
-        if (data.hints?.length) parts.push('Hints:\n- ' + data.hints.join('\n- '));
-        if (data.source) {
-          const label = data.source === 'gemini' ? 'Gemini' : data.source === 'groq' ? 'Groq' : 'Heuristic';
-          parts.push(`Grader: ${label}`);
-        }
-        setMessages(prev => [...prev, { role: 'assistant', content: parts.join('\n\n') || 'Processed.' }]);
-      } catch (e: unknown) {
-        const msg = (e as Error)?.message || 'Something went wrong';
-        setMessages(prev => [...prev, { role: 'assistant', content: `error: ${msg}` }]);
-      } finally {
-        setBusy(false);
-      }
+      
+      const assistantMsg: ChatMsg = {
+        role: 'assistant',
+        content: `I'm ready to grade your challenge: **${focusTask.title}**\n\n${focusTask.description || ''}\n\nPlease submit your solution by:\n- Describing your approach\n- Attaching a screenshot of your code\n- Uploading your solution file\n\nOnce you submit, I'll grade your work and provide feedback!`
+      };
+      
+      setMessages(prev => [...prev, systemMsg, assistantMsg]);
     }
   }
   const [input, setInput] = useState('');
@@ -89,29 +76,54 @@ export default function ChallengeBotPage() {
   }, []);
 
   useEffect(() => {
-    if (!currentConversationId || messages.length === 0) return;
+    // Don't save if there are no messages or only the initial assistant message
+    if (messages.length === 0 || (messages.length === 1 && messages[0].role === 'assistant')) return;
+    
+    // Auto-save conversation after 2 seconds of inactivity
     const timeoutId = setTimeout(async () => {
       try {
-        await fetch('/api/conversations', {
+        const conversationTitle = focusTask?.title || messages[0]?.content?.slice(0, 50) || 'Challenge Session';
+        
+        const savePayload: any = {
+          title: conversationTitle,
+          messages: messages
+        };
+        
+        // If we have a current conversation ID, update it; otherwise create new
+        if (currentConversationId) {
+          savePayload.id = currentConversationId;
+        }
+        
+        // If we have a focusTask, include taskId for grading history
+        if (focusTask?._id) {
+          savePayload.taskId = focusTask._id;
+        }
+        
+        const res = await fetch('/api/grading-history', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chatType: 'assistant',
-            conversationId: currentConversationId,
-            messages
-          })
+          body: JSON.stringify(savePayload)
         });
-        loadConversations();
+        
+        if (res.ok) {
+          const data = await res.json();
+          // Set the conversation ID if this was a new conversation
+          if (!currentConversationId && data.id) {
+            setCurrentConversationId(data.id);
+          }
+          loadConversations();
+        }
       } catch (error) {
-        console.error('Failed to save conversation:', error);
+        console.error('Failed to auto-save conversation:', error);
       }
-    }, 1000);
+    }, 2000);
+    
     return () => clearTimeout(timeoutId);
-  }, [messages, currentConversationId]);
+  }, [messages, currentConversationId, focusTask]);
 
   async function loadConversations() {
     try {
-      const res = await fetch('/api/conversations?type=assistant');
+      const res = await fetch('/api/grading-history');
       if (res.ok) {
         const data = await res.json();
         setConversations(data.conversations || []);
@@ -123,8 +135,8 @@ export default function ChallengeBotPage() {
 
   async function loadConversation(id: string) {
     try {
-      const res = await fetch(`/api/conversations?type=assistant&id=${id}`);
-      console.log('Fetching conversation:', `/api/conversations?type=assistant&id=${id}`);
+      const res = await fetch(`/api/grading-history?id=${id}`);
+      console.log('Fetching conversation:', `/api/grading-history?id=${id}`);
       const raw = await res.clone().text();
       console.log('Raw response:', raw);
       if (res.ok) {
@@ -143,11 +155,10 @@ export default function ChallengeBotPage() {
 
   async function createNewConversation() {
     try {
-      const res = await fetch('/api/conversations', {
+      const res = await fetch('/api/grading-history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chatType: 'assistant',
           title: 'New Challenge',
           messages: [{ role: 'assistant', content: 'Describe your challenge, attach a screenshot or solution file, then click Send. I will grade it.' }]
         })
@@ -163,15 +174,22 @@ export default function ChallengeBotPage() {
     }
   }
 
-  async function deleteConversation(id: string) {
-    if (!confirm('Delete this conversation? This cannot be undone.')) return;
+  function confirmDeleteConversation(id: string) {
+    setConversationToDelete(id);
+    setDeleteModalOpen(true);
+  }
+
+  async function deleteConversation() {
+    if (!conversationToDelete) return;
     try {
-      await fetch(`/api/conversations?type=assistant&id=${id}`, { method: 'DELETE' });
-      if (currentConversationId === id) {
+      await fetch(`/api/grading-history?id=${conversationToDelete}`, { method: 'DELETE' });
+      if (currentConversationId === conversationToDelete) {
         setCurrentConversationId(null);
         setMessages([{ role: 'assistant', content: 'Describe your challenge, attach a screenshot or solution file, then click Send. I will grade it.' }]);
       }
       loadConversations();
+      setDeleteModalOpen(false);
+      setConversationToDelete(null);
     } catch (error) {
       console.error('Failed to delete conversation:', error);
     }
@@ -184,7 +202,9 @@ export default function ChallengeBotPage() {
 
   async function onSend() {
     if (busy) return;
-    if (!input && !upload && !image) return;
+    // Don't send if there's no content at all
+    if (!input?.trim() && !upload && !image) return;
+    
     const userMsg: ChatMsg = { role: 'user', content: input || '(no message)' };
     setMessages((prev) => [...prev, userMsg]);
     setBusy(true);
@@ -193,6 +213,10 @@ export default function ChallengeBotPage() {
       fd.append('message', input);
       if (upload) fd.append('file', upload);
       if (image) fd.append('screenshot', image);
+      // Pass task context if available
+      if (focusTask) {
+        fd.append('taskContext', JSON.stringify(focusTask));
+      }
       const res = await fetch('/api/assistant/analyze', { method: 'POST', body: fd });
       if (!res.ok) {
         const text = await res.text();
@@ -202,13 +226,19 @@ export default function ChallengeBotPage() {
       const parts: string[] = [];
       if (data.analysis) parts.push(data.analysis);
       if (typeof data.score === 'number') parts.push(`Score: ${data.score}/100`);
-      if (typeof data.passed === 'boolean') parts.push(data.passed ? 'Result: Pass (check)' : 'Result: Fail (x)');
+      if (typeof data.passed === 'boolean') parts.push(data.passed ? 'Result: Pass ✅' : 'Result: Fail ❌');
+      if (data.taskCompleted) {
+        parts.push('\n🎉 **TASK COMPLETED!**\nYour NFT achievement badge is being minted on Hedera blockchain!');
+      }
       if (data.hints?.length) parts.push('Hints:\n- ' + data.hints.join('\n- '));
       if (data.source) {
-        const label = data.source === 'gemini' ? 'Gemini' : data.source === 'groq' ? 'Groq' : 'Heuristic';
+        const label = data.source === 'gemini' ? 'Gemini' : data.source === 'groq' ? 'Groq' : data.source === 'validation' ? 'Validation' : 'Heuristic';
         parts.push(`Grader: ${label}`);
       }
-      setMessages((prev) => [...prev, { role: 'assistant', content: parts.join('\n\n') || 'Processed.' }]);
+      const assistantResponse = parts.join('\n\n') || 'Processed.';
+      setMessages((prev) => [...prev, { role: 'assistant', content: assistantResponse }]);
+      
+      // Auto-save will handle saving the conversation via useEffect
     } catch (e: unknown) {
       const msg = (e as Error)?.message || 'Something went wrong';
       setMessages((prev) => [...prev, { role: 'assistant', content: `error: ${msg}` }]);
@@ -253,6 +283,11 @@ export default function ChallengeBotPage() {
           <div>
             <h1 className="github-page-title">Challenge Bot</h1>
             <p className="github-page-description">Upload a screenshot or attach your solution file for automatic grading.</p>
+            {focusTask && !askFocus && (
+              <div style={{ marginTop: 8, padding: '8px 12px', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: 6, fontSize: 13 }}>
+                <strong>📌 Focused Task:</strong> {focusTask.title}
+              </div>
+            )}
           </div>
           {mounted && (
             <button className="github-btn" onClick={() => setShowSidebar(!showSidebar)} style={{ fontSize: 14, padding: '6px 12px' }}>
@@ -266,8 +301,26 @@ export default function ChallengeBotPage() {
       </div>
 
       <div className="assistant-layout" style={{ display: 'flex', gap: 16 }}>
+        {/* Mobile backdrop */}
         {mounted && showSidebar && (
-          <div className="assistant-sidebar" style={{ width: 280, flexShrink: 0 }}>
+          <div 
+            className="sidebar-backdrop"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.5)',
+              zIndex: 998,
+              display: 'none'
+            }}
+            onClick={() => setShowSidebar(false)}
+          />
+        )}
+        
+        {mounted && showSidebar && (
+          <div className={`assistant-sidebar ${showSidebar ? 'show' : ''}`} style={{ width: 280, flexShrink: 0 }}>
             <div className="github-card" style={{ padding: 12 }}>
               <button className="github-btn github-btn-primary" onClick={createNewConversation} style={{ width: '100%', marginBottom: 12 }}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: 6 }}>
@@ -307,7 +360,7 @@ export default function ChallengeBotPage() {
                         </div>
                         <button
                           className="github-btn"
-                          onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
+                          onClick={(e) => { e.stopPropagation(); confirmDeleteConversation(conv.id); }}
                           style={{ padding: '2px 6px', fontSize: 11 }}
                         >
                           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
@@ -403,6 +456,73 @@ export default function ChallengeBotPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            backdropFilter: 'blur(4px)'
+          }}
+          onClick={() => setDeleteModalOpen(false)}
+        >
+          <div 
+            style={{
+              background: 'var(--panel)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 400,
+              width: '90%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 12px 0', fontSize: 18, fontWeight: 600, color: 'var(--fg)' }}>
+              Delete Conversation?
+            </h3>
+            <p style={{ margin: '0 0 24px 0', color: 'var(--muted)', lineHeight: 1.5 }}>
+              This conversation will be permanently deleted. This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button
+                className="github-btn"
+                onClick={() => setDeleteModalOpen(false)}
+                style={{ 
+                  padding: '10px 20px',
+                  background: 'var(--panel)',
+                  border: '1px solid var(--border)',
+                  minWidth: '100px'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="github-btn"
+                onClick={deleteConversation}
+                style={{ 
+                  padding: '10px 20px',
+                  background: '#dc3545',
+                  border: '1px solid #dc3545',
+                  color: 'white',
+                  minWidth: '100px'
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

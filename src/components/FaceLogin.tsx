@@ -252,12 +252,29 @@ export default function FaceLogin() {
 
   // Face verification step
   return (
-    <div style={{ padding: '20px 0' }}>
-      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-        <Camera style={{ margin: '0 auto 12px', width: '48px', height: '48px', color: '#2563eb' }} />
-        <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>Scan Your Face</h3>
-        <p style={{ fontSize: '14px', color: '#6b7280' }}>Take a photo or upload an image to verify your identity</p>
-      </div>
+    <>
+      <style>{`
+        @media (max-width: 768px) {
+          .face-login-container {
+            padding: 16px 0 !important;
+          }
+          .face-login-video {
+            max-height: 350px !important;
+            border-radius: 6px !important;
+          }
+          .face-login-buttons button {
+            padding: 14px !important;
+            font-size: 15px !important;
+            min-height: 44px !important;
+          }
+        }
+      `}</style>
+      <div className="face-login-container" style={{ padding: '20px 0' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <Camera style={{ margin: '0 auto 12px', width: '48px', height: '48px', color: '#2563eb' }} />
+          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>Scan Your Face</h3>
+          <p style={{ fontSize: '14px', color: '#6b7280' }}>Take a photo to verify your identity</p>
+        </div>
 
       {error && (
         <div style={{ 
@@ -297,14 +314,18 @@ export default function FaceLogin() {
 
       {/* Camera preview */}
       {showCamera && (
-        <div style={{ 
-          marginBottom: '16px', 
-          position: 'relative', 
-          borderRadius: '8px', 
-          overflow: 'hidden', 
-          background: '#000',
-          aspectRatio: '4/3'
-        }}>
+        <div 
+          className="face-login-video"
+          style={{ 
+            marginBottom: '16px', 
+            position: 'relative', 
+            borderRadius: '8px', 
+            overflow: 'hidden', 
+            background: '#000',
+            aspectRatio: '4/3',
+            maxHeight: '400px'
+          }}
+        >
           <video 
             ref={videoRef} 
             autoPlay 
@@ -321,87 +342,94 @@ export default function FaceLogin() {
         </div>
       )}
 
-      {!showCamera ? (
-        <button
-          onClick={startCamera}
-          disabled={isVerifying}
-          style={{
-            width: '100%',
-            padding: '16px',
-            background: isVerifying ? '#9ca3af' : '#2563eb',
-            color: 'white',
-            borderRadius: '8px',
-            border: 'none',
-            fontWeight: '500',
-            cursor: isVerifying ? 'not-allowed' : 'pointer',
-            transition: 'background 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
-          }}
-          onMouseOver={(e) => !isVerifying && (e.currentTarget.style.background = '#1d4ed8')}
-          onMouseOut={(e) => !isVerifying && (e.currentTarget.style.background = '#2563eb')}
-        >
-          <Camera style={{ width: '20px', height: '20px' }} />
-          Start Camera
-        </button>
-      ) : (
-        <>
+      <div className="face-login-buttons">
+        {!showCamera ? (
           <button
-            onClick={capturePhoto}
+            onClick={startCamera}
             disabled={isVerifying}
             style={{
               width: '100%',
               padding: '16px',
-              background: isVerifying ? '#9ca3af' : '#10b981',
+              background: isVerifying ? '#9ca3af' : '#2563eb',
               color: 'white',
               borderRadius: '8px',
               border: 'none',
               fontWeight: '500',
+              fontSize: '16px',
               cursor: isVerifying ? 'not-allowed' : 'pointer',
               transition: 'background 0.2s',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              marginBottom: '12px'
+              minHeight: '44px'
             }}
-            onMouseOver={(e) => !isVerifying && (e.currentTarget.style.background = '#059669')}
-            onMouseOut={(e) => !isVerifying && (e.currentTarget.style.background = '#10b981')}
+            onMouseOver={(e) => !isVerifying && (e.currentTarget.style.background = '#1d4ed8')}
+            onMouseOut={(e) => !isVerifying && (e.currentTarget.style.background = '#2563eb')}
           >
-            {isVerifying ? (
-              <>
-                <span className="spinner-small"></span>
-                Verifying face...
-              </>
-            ) : (
-              <>
-                <Camera style={{ width: '20px', height: '20px' }} />
-                Capture & Verify
-              </>
-            )}
+            <Camera style={{ width: '20px', height: '20px' }} />
+            Start Camera
           </button>
+        ) : (
+          <>
+            <button
+              onClick={capturePhoto}
+              disabled={isVerifying}
+              style={{
+                width: '100%',
+                padding: '16px',
+                background: isVerifying ? '#9ca3af' : '#10b981',
+                color: 'white',
+                borderRadius: '8px',
+                border: 'none',
+                fontWeight: '500',
+                fontSize: '16px',
+                cursor: isVerifying ? 'not-allowed' : 'pointer',
+                transition: 'background 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                marginBottom: '12px',
+                minHeight: '44px'
+              }}
+              onMouseOver={(e) => !isVerifying && (e.currentTarget.style.background = '#059669')}
+              onMouseOut={(e) => !isVerifying && (e.currentTarget.style.background = '#10b981')}
+            >
+              {isVerifying ? (
+                <>
+                  <span className="spinner-small"></span>
+                  Verifying face...
+                </>
+              ) : (
+                <>
+                  <Camera style={{ width: '20px', height: '20px' }} />
+                  Capture & Verify
+                </>
+              )}
+            </button>
 
-          <button
-            onClick={stopCamera}
-            disabled={isVerifying}
-            style={{
-              width: '100%',
-              padding: '12px',
-              background: 'transparent',
-              color: '#ef4444',
-              border: '1px solid #ef4444',
-              borderRadius: '8px',
-              fontWeight: '500',
-              cursor: isVerifying ? 'not-allowed' : 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            Cancel Camera
-          </button>
-        </>
-      )}
+            <button
+              onClick={stopCamera}
+              disabled={isVerifying}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: 'transparent',
+                color: '#ef4444',
+                border: '1px solid #ef4444',
+                borderRadius: '8px',
+                fontWeight: '500',
+                fontSize: '15px',
+                cursor: isVerifying ? 'not-allowed' : 'pointer',
+                minHeight: '44px'
+              }}
+            >
+              Cancel Camera
+            </button>
+          </>
+        )}
+      </div>
 
       <button
         type="button"
@@ -418,11 +446,13 @@ export default function FaceLogin() {
           color: '#6b7280',
           border: 'none',
           cursor: 'pointer',
-          fontSize: '14px'
+          fontSize: '14px',
+          minHeight: '44px'
         }}
       >
         ← Back
       </button>
     </div>
+    </>
   );
 }

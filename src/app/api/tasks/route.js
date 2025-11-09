@@ -11,10 +11,42 @@ export async function GET(req) {
     if (!rl.ok) return new Response(JSON.stringify({ message: 'Too many requests' }), { status: 429 });
 
     const { user } = await getUserFromRequest(req);
-  const tasks = await Task.find({ user: user._id }).sort({ dueAt: 1, createdAt: -1 }).lean();
-  console.log('Tasks GET - returning tasks count:', tasks.length);
-  tasks.forEach(t => console.log(' task:', { id: t._id.toString(), dueAt: t.dueAt, dueDate: t.dueDate }));
-  return new Response(JSON.stringify({ tasks }), { status: 200 });
+    
+    // Check if we should filter for NFT badges only
+    const url = new URL(req.url);
+    const nftOnly = url.searchParams.get('nftOnly') === 'true';
+    
+    // Build query - if nftOnly, filter for tasks with NFT badges
+    const query = { userId: user._id.toString() };
+    if (nftOnly) {
+      query.nftMinted = true;
+    }
+    
+    const tasks = await Task.find(query).sort({ dueAt: 1, createdAt: -1 }).lean();
+
+    // Format tasks to ensure _id is string and all fields are properly serialized
+    const formattedTasks = tasks.map(task => {
+      // Normalize status field for backwards compatibility
+      let status = task.status || 'pending';
+      if (!task.status && task.completed) {
+        status = 'completed';
+      }
+
+      return {
+        ...task,
+        _id: task._id.toString(),
+        user: task.user?.toString(),
+        status: status, // Ensure status is always present
+        dueAt: task.dueAt ? task.dueAt.toISOString() : null,
+        dueDate: task.dueDate ? task.dueDate.toISOString() : null,
+        completedAt: task.completedAt ? task.completedAt.toISOString() : null,
+        createdAt: task.createdAt ? task.createdAt.toISOString() : null,
+        updatedAt: task.updatedAt ? task.updatedAt.toISOString() : null
+      };
+    });
+
+    console.log('Tasks GET - returning tasks:', formattedTasks.map(t => ({ id: t._id, title: t.title, status: t.status })));
+    return new Response(JSON.stringify({ tasks: formattedTasks }), { status: 200 });
   } catch (err) {
     if (err.message === 'NO_TOKEN' || err.message === 'INVALID_TOKEN') {
       return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
@@ -36,8 +68,15 @@ export async function POST(req) {
     if (!parsed.success) {
       return new Response(JSON.stringify({ message: 'Validation error', errors: parsed.error.flatten() }), { status: 400 });
     }
-    const { title, dueAt } = parsed.data;
-    const task = await Task.create({ user: user._id, title, dueAt: dueAt ? new Date(dueAt) : undefined });
+    const { title, description, dueAt } = parsed.data;
+    // Create task with both user (ObjectId) and userId (string) for compatibility
+    const task = await Task.create({ 
+      user: user._id, 
+      userId: user._id.toString(),
+      title,
+      description: description || '',
+      dueAt: dueAt ? new Date(dueAt) : undefined 
+    });
     // Notify user about new task
     try {
       await sendPushToUser(user._id, {
@@ -46,7 +85,7 @@ export async function POST(req) {
         icon: '/globe.svg',
         url: '/dashboard/tasks',
       });
-    } catch {}
+    } catch { }
     return new Response(JSON.stringify({ task }), { status: 201 });
   } catch (err) {
     if (err.message === 'NO_TOKEN' || err.message === 'INVALID_TOKEN') {

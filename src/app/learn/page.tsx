@@ -2,6 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+type Task = {
+  _id: string;
+  title: string;
+  description?: string;
+  difficulty?: string;
+  dueAt?: string | Date;
+  completed?: boolean;
+};
+
 type ChatMsg = { role: 'user' | 'assistant'; content: string; source?: 'gemini' | 'offline' | 'groq' };
 type Conversation = { id: string; title: string; messageCount: number; lastMessage: string; updatedAt: string };
 
@@ -16,11 +25,41 @@ export default function LearnPage() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [mounted, setMounted] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [focusTask, setFocusTask] = useState<Task | null>(null);
+  const [askFocus, setAskFocus] = useState(false);
 
   // Prevent hydration mismatch
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // On mount, check for task in query
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const taskParam = params.get('task');
+      if (taskParam) {
+        try {
+          const task: Task = JSON.parse(decodeURIComponent(taskParam));
+          setFocusTask(task);
+          setAskFocus(true);
+        } catch {}
+      }
+    }
+  }, []);
+
+  async function handleFocusTask(yes: boolean) {
+    setAskFocus(false);
+    if (yes && focusTask) {
+      // Add a learning-focused introduction about the task
+      const assistantMsg: ChatMsg = {
+        role: 'assistant',
+        content: `Let's learn about: **${focusTask.title}**\n\n${focusTask.description || ''}\n\nI'm here to guide you through learning the concepts and skills needed for this task. Feel free to ask me:\n- What concepts you need to understand\n- How to approach the problem\n- Explanations of related topics\n- Step-by-step guidance\n\nWhat would you like to learn first?`
+      };
+      
+      setMessages(prev => [...prev, assistantMsg]);
+    }
+  }
 
   // Load conversations list on mount
   useEffect(() => {
@@ -164,6 +203,17 @@ export default function LearnPage() {
 
   return (
     <div className="github-container">
+      {askFocus && focusTask && (
+        <div style={{ background: '#f1f5f9', padding: 16, borderRadius: 8, margin: 24, maxWidth: 600, marginLeft: 'auto', marginRight: 'auto' }}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Do you want to learn about this task?</div>
+          <div style={{ marginBottom: 8 }}>
+            <strong>{focusTask.title}</strong>
+            <div style={{ color: '#64748b', fontSize: 15 }}>{focusTask.description}</div>
+          </div>
+          <button onClick={() => handleFocusTask(true)} style={{ marginRight: 10, background: '#6366f1', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 18px', fontWeight: 600 }}>Yes</button>
+          <button onClick={() => handleFocusTask(false)} style={{ background: '#e5e7eb', color: '#334155', border: 'none', borderRadius: 6, padding: '6px 18px', fontWeight: 600 }}>No</button>
+        </div>
+      )}
       <style>{`
         @media (max-width: 768px) {
           .learn-layout { flex-direction: column !important; }

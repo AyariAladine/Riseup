@@ -232,13 +232,15 @@ export async function getUserFromRequest(req: Request) {
             const dbUser = await userCollection.findOne({ email: session.user.email });
             
             if (dbUser) {
-                // Get custom fields like isPremium, preferences, etc.
+                // Get custom fields like isPremium, preferences, avatar, etc.
                 extraProfile = {
                     isPremium: dbUser.isPremium || false,
                     stripeCustomerId: dbUser.stripeCustomerId || '',
                     preferences: dbUser.preferences || { theme: 'system', emailNotifications: true, isOnline: true },
                     xp: dbUser.xp || 0,
                     level: dbUser.level || 1,
+                    avatar: dbUser.avatar || '',
+                    name: dbUser.name || session.user.name,
                 };
             }
             
@@ -247,8 +249,8 @@ export async function getUserFromRequest(req: Request) {
             console.error('Error fetching extra user profile:', e);
         }
         
-        // Map 'image' to 'avatar' for compatibility
-        let avatar = (session.user as any)?.avatar || (session.user as any)?.image || '';
+        // Use avatar from database if available, fallback to session
+        let avatar = extraProfile.avatar || (session.user as any)?.avatar || (session.user as any)?.image || '';
         
         return {
             user: {

@@ -17,8 +17,25 @@ const TaskSchema = new mongoose.Schema(
     completedAt: { type: Date },
     aiGenerated: { type: Boolean, default: false },
     aiRecommendationData: { type: mongoose.Schema.Types.Mixed },
+    aiSummary: { type: String, default: '' },
     notes: { type: String, default: '' },
-    progress: { type: Number, default: 0, min: 0, max: 100 }
+    progress: { type: Number, default: 0, min: 0, max: 100 },
+    
+    // Grading system
+    score: { type: Number, min: 0, max: 100, default: null },
+    gradeConversation: [{ 
+      role: { type: String, enum: ['user', 'assistant', 'system'] },
+      content: { type: String },
+      timestamp: { type: Date, default: Date.now }
+    }],
+    gradedAt: { type: Date },
+    
+    // NFT Badge - Hedera
+    nftBadgeId: { type: String, default: null }, // Hedera NFT serial number
+    nftTokenId: { type: String, default: null }, // Hedera token ID
+    nftTransactionHash: { type: String, default: null },
+    nftMetadataUri: { type: String, default: null }, // IPFS URI for metadata
+    nftMinted: { type: Boolean, default: false }
   },
   { timestamps: true }
 );

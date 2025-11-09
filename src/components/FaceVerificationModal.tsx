@@ -135,28 +135,66 @@ export default function FaceVerificationModal({
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 9999,
-      padding: '20px',
-    }}>
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        maxWidth: '500px',
-        width: '100%',
-        padding: '24px',
-        position: 'relative',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-      }}>
+    <>
+      <style>{`
+        @media (max-width: 768px) {
+          .face-modal-container {
+            padding: 12px !important;
+          }
+          .face-modal-content {
+            max-width: 100% !important;
+            padding: 20px 16px !important;
+            border-radius: 8px !important;
+          }
+          .face-modal-header h3 {
+            font-size: 18px !important;
+          }
+          .face-modal-header p {
+            font-size: 13px !important;
+          }
+          .face-video-container {
+            border-radius: 6px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .face-modal-content {
+            max-height: 90vh !important;
+            overflow-y: auto !important;
+          }
+          .face-modal-buttons button {
+            padding: 14px !important;
+            font-size: 15px !important;
+          }
+        }
+      `}</style>
+      <div 
+        className="face-modal-container"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px',
+        }}
+      >
+        <div 
+          className="face-modal-content"
+          style={{
+            background: 'white',
+            borderRadius: '12px',
+            maxWidth: '500px',
+            width: '100%',
+            padding: '24px',
+            position: 'relative',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          }}
+        >
         {/* Close button */}
         <button
           onClick={handleClose}
@@ -175,7 +213,7 @@ export default function FaceVerificationModal({
         </button>
 
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        <div className="face-modal-header" style={{ textAlign: 'center', marginBottom: '24px' }}>
           <Camera style={{ margin: '0 auto 12px', width: '48px', height: '48px', color: '#2563eb' }} />
           <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '8px', color: '#1f2937' }}>
             {title}
@@ -225,14 +263,18 @@ export default function FaceVerificationModal({
 
         {/* Camera preview */}
         {showCamera && (
-          <div style={{ 
-            marginBottom: '16px', 
-            position: 'relative', 
-            borderRadius: '8px', 
-            overflow: 'hidden', 
-            background: '#000',
-            aspectRatio: '4/3'
-          }}>
+          <div 
+            className="face-video-container"
+            style={{ 
+              marginBottom: '16px', 
+              position: 'relative', 
+              borderRadius: '8px', 
+              overflow: 'hidden', 
+              background: '#000',
+              aspectRatio: '4/3',
+              maxHeight: '400px'
+            }}
+          >
             <video 
               ref={videoRef} 
               autoPlay 
@@ -250,88 +292,96 @@ export default function FaceVerificationModal({
         )}
 
         {/* Action buttons */}
-        {!showCamera ? (
-          <button
-            onClick={startCamera}
-            disabled={isVerifying}
-            style={{
-              width: '100%',
-              padding: '16px',
-              background: isVerifying ? '#9ca3af' : '#2563eb',
-              color: 'white',
-              borderRadius: '8px',
-              border: 'none',
-              fontWeight: '500',
-              cursor: isVerifying ? 'not-allowed' : 'pointer',
-              transition: 'background 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-            onMouseOver={(e) => !isVerifying && (e.currentTarget.style.background = '#1d4ed8')}
-            onMouseOut={(e) => !isVerifying && (e.currentTarget.style.background = '#2563eb')}
-          >
-            <Camera style={{ width: '20px', height: '20px' }} />
-            Start Camera
-          </button>
-        ) : (
-          <>
+        <div className="face-modal-buttons">
+          {!showCamera ? (
             <button
-              onClick={capturePhoto}
+              onClick={startCamera}
               disabled={isVerifying}
               style={{
                 width: '100%',
                 padding: '16px',
-                background: isVerifying ? '#9ca3af' : '#10b981',
+                background: isVerifying ? '#9ca3af' : '#2563eb',
                 color: 'white',
                 borderRadius: '8px',
                 border: 'none',
                 fontWeight: '500',
+                fontSize: '16px',
                 cursor: isVerifying ? 'not-allowed' : 'pointer',
                 transition: 'background 0.2s',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                marginBottom: '12px'
+                minHeight: '44px'
               }}
-              onMouseOver={(e) => !isVerifying && (e.currentTarget.style.background = '#059669')}
-              onMouseOut={(e) => !isVerifying && (e.currentTarget.style.background = '#10b981')}
+              onMouseOver={(e) => !isVerifying && (e.currentTarget.style.background = '#1d4ed8')}
+              onMouseOut={(e) => !isVerifying && (e.currentTarget.style.background = '#2563eb')}
             >
-              {isVerifying ? (
-                <>
-                  <span className="spinner-small"></span>
-                  Verifying...
-                </>
-              ) : (
-                <>
-                  <Camera style={{ width: '20px', height: '20px' }} />
-                  Capture & Verify
-                </>
-              )}
+              <Camera style={{ width: '20px', height: '20px' }} />
+              Start Camera
             </button>
+          ) : (
+            <>
+              <button
+                onClick={capturePhoto}
+                disabled={isVerifying}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  background: isVerifying ? '#9ca3af' : '#10b981',
+                  color: 'white',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontWeight: '500',
+                  fontSize: '16px',
+                  cursor: isVerifying ? 'not-allowed' : 'pointer',
+                  transition: 'background 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  marginBottom: '12px',
+                  minHeight: '44px'
+                }}
+                onMouseOver={(e) => !isVerifying && (e.currentTarget.style.background = '#059669')}
+                onMouseOut={(e) => !isVerifying && (e.currentTarget.style.background = '#10b981')}
+              >
+                {isVerifying ? (
+                  <>
+                    <span className="spinner-small"></span>
+                    Verifying...
+                  </>
+                ) : (
+                  <>
+                    <Camera style={{ width: '20px', height: '20px' }} />
+                    Capture & Verify
+                  </>
+                )}
+              </button>
 
-            <button
-              onClick={stopCamera}
-              disabled={isVerifying}
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: 'transparent',
-                color: '#ef4444',
-                border: '1px solid #ef4444',
-                borderRadius: '8px',
-                fontWeight: '500',
-                cursor: isVerifying ? 'not-allowed' : 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              Cancel
-            </button>
-          </>
-        )}
+              <button
+                onClick={stopCamera}
+                disabled={isVerifying}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  background: 'transparent',
+                  color: '#ef4444',
+                  border: '1px solid #ef4444',
+                  borderRadius: '8px',
+                  fontWeight: '500',
+                  fontSize: '15px',
+                  cursor: isVerifying ? 'not-allowed' : 'pointer',
+                  minHeight: '44px'
+                }}
+              >
+                Cancel
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
+    </>
   );
 }

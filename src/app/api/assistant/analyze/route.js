@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/rateLimiter';
+// Gemini removed: using Groq only for AI grading
 import Groq from 'groq-sdk';
 let __groqModelsCache = null;
 
@@ -8,14 +9,60 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
   try {
+    console.log('[Assistant] ===== NEW REQUEST TO /api/assistant/analyze =====');
+    
     const ip = req.headers.get('x-forwarded-for') || 'local';
     const rl = rateLimit(`assistant:${ip}`, 8, 60_000);
     if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 });
 
     const form = await req.formData();
     const message = (form.get('message') || '').toString();
-  const screenshot = form.get('screenshot');
-  const file = form.get('file');
+    const screenshot = form.get('screenshot');
+    const file = form.get('file');
+    const taskContext = form.get('taskContext'); // Get task context from form data
+    
+    console.log('[Assistant] Request data:', {
+      hasMessage: !!message,
+      hasScreenshot: !!screenshot,
+      hasFile: !!file,
+      hasTaskContext: !!taskContext,
+      taskContextPreview: taskContext ? taskContext.substring(0, 100) : null
+    });
+    
+    // Parse task context if available
+    let taskLanguage = null;
+    let taskTitle = '';
+    let taskDescription = '';
+    if (taskContext) {
+      try {
+        const task = JSON.parse(taskContext);
+        taskTitle = task.title || '';
+        taskDescription = task.description || '';
+        
+        // Detect expected language from task title and description
+        const taskText = `${taskTitle} ${taskDescription}`.toLowerCase();
+        if (/\b(javascript|js|node|react|vue|angular|typescript|ts)\b/.test(taskText)) {
+          taskLanguage = 'javascript';
+        } else if (/\b(python|py|django|flask|pandas)\b/.test(taskText)) {
+          taskLanguage = 'python';
+        } else if (/\b(java|spring|maven)\b/.test(taskText)) {
+          taskLanguage = 'java';
+        } else if (/\b(c\+\+|cpp|c)\b/.test(taskText)) {
+          taskLanguage = 'cpp';
+        } else if (/\b(php|laravel)\b/.test(taskText)) {
+          taskLanguage = 'php';
+        } else if (/\b(ruby|rails)\b/.test(taskText)) {
+          taskLanguage = 'ruby';
+        } else if (/\b(go|golang)\b/.test(taskText)) {
+          taskLanguage = 'go';
+        } else if (/\b(rust)\b/.test(taskText)) {
+          taskLanguage = 'rust';
+        }
+      } catch (e) {
+        console.error('Failed to parse task context:', e);
+      }
+    }
+  // mode is locked to grader by product decision (kept as a concept, not needed as a variable)
 
   let analysis = '';
   let score = 0;
@@ -48,6 +95,51 @@ export async function POST(req) {
       const text = new TextDecoder('utf-8', { fatal: false }).decode(slice);
       const ext = (file.name.split('.').pop() || '').toLowerCase();
       analysis += (analysis ? '\n\n' : '') + `File received: ${file.name} (${Math.round(file.size/1024)} KB).`;
+
+      // Detect submitted file language
+      let submittedLanguage = null;
+      if (ext === 'py' || /def\s+\w+\(|import\s+\w+|print\(/.test(text)) {
+        submittedLanguage = 'python';
+      } else if (['js', 'jsx', 'ts', 'tsx', 'mjs'].includes(ext) || /(function|=>|console\.log|import\s+.*from|export\s+(default|const)|const\s+\w+\s*=)/.test(text)) {
+        submittedLanguage = 'javascript';
+      } else if (ext === 'java' || /public\s+class|System\.out\.println|import\s+java\./.test(text)) {
+        submittedLanguage = 'java';
+      } else if (['cpp', 'cc', 'cxx', 'c', 'h', 'hpp'].includes(ext) || /#include\s*<|std::|cout\s*<</.test(text)) {
+        submittedLanguage = 'cpp';
+      } else if (ext === 'php' || /<\?php|echo\s+|\$\w+\s*=/.test(text)) {
+        submittedLanguage = 'php';
+      } else if (ext === 'rb' || /def\s+\w+|puts\s+|require\s+/.test(text)) {
+        submittedLanguage = 'ruby';
+      } else if (ext === 'go' || /package\s+main|func\s+\w+|import\s+\(/.test(text)) {
+        submittedLanguage = 'go';
+      } else if (ext === 'rs' || /fn\s+\w+|let\s+mut|use\s+std::/.test(text)) {
+        submittedLanguage = 'rust';
+      }
+
+      // Check for language mismatch
+      if (taskLanguage && submittedLanguage && taskLanguage !== submittedLanguage) {
+        const languageNames = {
+          javascript: 'JavaScript/TypeScript',
+          python: 'Python',
+          java: 'Java',
+          cpp: 'C/C++',
+          php: 'PHP',
+          ruby: 'Ruby',
+          go: 'Go',
+          rust: 'Rust'
+        };
+        return NextResponse.json({
+          analysis: `❌ **Wrong Language Detected**\n\nThis task requires ${languageNames[taskLanguage] || taskLanguage.toUpperCase()}, but you submitted ${languageNames[submittedLanguage] || submittedLanguage.toUpperCase()} code.\n\nTask: ${taskTitle}\n${taskDescription ? `Description: ${taskDescription}\n` : ''}\nPlease resubmit your solution in the correct programming language.`,
+          score: 0,
+          passed: false,
+          hints: [
+            `Read the task requirements carefully - it specifies ${languageNames[taskLanguage] || taskLanguage.toUpperCase()}`,
+            `Your submitted file (${file.name}) contains ${languageNames[submittedLanguage] || submittedLanguage.toUpperCase()} code`,
+            `Rewrite your solution using ${languageNames[taskLanguage] || taskLanguage.toUpperCase()} before resubmitting`
+          ],
+          source: 'validation'
+        }, { status: 200 });
+      }
 
       // naive language detections and scoring rubric
       if (/(function|=>|console\.log|import |export )/.test(text)) {
@@ -122,12 +214,29 @@ export async function POST(req) {
         };
         const orderedDiscovered = [...discovered].sort((a,b) => rank(a) - rank(b));
         const candidate = Array.from(new Set([...envModels, ...orderedDiscovered])).slice(0, 8);
-        const rubric = `You are a strict grader. Based on the user's challenge description and the provided evidence (screenshot summary and/or code sample), provide:
+        
+        // Build rubric with task context if available
+        let rubric = `You are a strict grader. Based on the user's challenge description and the provided evidence (screenshot summary and/or code sample), provide:
 1) analysis: whether the submission meets the challenge requirements (concise).
 2) score: number from 0 to 100 (objective, tough but fair).
 3) passed: boolean (>= 60 is pass).
-4) hints: 3-5 concrete, actionable improvements.
-Return only JSON with fields: { analysis: string, score: number, passed: boolean, hints: string[] }.`;
+4) hints: 3-5 concrete, actionable improvements.`;
+        
+        if (taskTitle) {
+          rubric += `\n\nIMPORTANT - This is a specific task challenge:
+Task: ${taskTitle}
+${taskDescription ? `Description: ${taskDescription}` : ''}
+${taskLanguage ? `Required Language: ${taskLanguage.toUpperCase()}` : ''}
+
+Verify that:
+- The solution addresses the specific task requirements
+- The code is in the correct programming language (if specified)
+- The implementation matches what the task is asking for
+- If the language is wrong, give 0 points immediately`;
+        }
+        
+        rubric += `\n\nReturn only JSON with fields: { analysis: string, score: number, passed: boolean, hints: string[] }.`;
+        
         const screenshotNote = screenshot ? `Screenshot attached by user (size ~${screenshot?.size ? Math.round(screenshot.size/1024) + ' KB' : 'unknown'}). Describe what you infer from a typical task screenshot; actual image bytes are not included.` : 'No screenshot.';
         const fileNote = req.__fileName ? `Submitted file: ${req.__fileName}. Sample:
 --- BEGIN SAMPLE ---
@@ -137,6 +246,7 @@ ${req.__fileTextSample || ''}
         if (message) history.push({ role: 'user', content: `Challenge description:\n${message}` });
         history.push({ role: 'user', content: `${screenshotNote}\n\n${fileNote}` });
         let lastErr;
+        let groqResponse = null;
         for (const m of candidate) {
           try {
             const r = await groq.chat.completions.create({
@@ -147,7 +257,8 @@ ${req.__fileTextSample || ''}
               ],
               temperature: 0.2,
             });
-            const txt = r.choices?.[0]?.message?.content || '';
+            groqResponse = r.choices?.[0]?.message?.content || '';
+            const txt = groqResponse;
             const match = String(txt).match(/\{[\s\S]*\}/);
             if (match) {
               const parsed = JSON.parse(match[0]);
@@ -164,10 +275,10 @@ ${req.__fileTextSample || ''}
             if (verbose) console.error('Groq grading failed with model:', m, err?.message || err);
           }
         }
-        if (source === 'groq') {
-          const passed = score >= 60;
-          return NextResponse.json({ analysis, score, passed, hints, source });
-        }
+        // Store the conversation for later use
+        req.__gradingHistory = history;
+        req.__groqResponse = groqResponse;
+        // Removed early return here - continue to task completion logic
         if (lastErr && verbose) console.error('Groq grading ultimate failure:', lastErr);
       } catch (e) {
         if (verbose) console.error('Groq grading outer failure:', e);
@@ -177,6 +288,80 @@ ${req.__fileTextSample || ''}
 
   const passed = score >= 60;
   const out = { analysis, score, passed, hints, source };
+  
+  console.log(`[Assistant] Grading complete. Score: ${score}, Passed: ${passed}, Task context present: ${!!taskContext}`);
+  
+  // If score >= 70 and we have a task context, complete the task and mint NFT
+  if (score >= 70 && taskContext) {
+    try {
+      const task = JSON.parse(taskContext);
+      const taskId = task._id;
+      
+      console.log(`[Assistant] Task ${taskId} scored ${score} (≥70). Attempting to complete...`);
+      
+      // Build comprehensive conversation from the grading session
+      const conversation = [
+        { 
+          role: 'user', 
+          content: message || 'Submitted solution for grading',
+          timestamp: new Date().toISOString()
+        },
+        ...(req.__gradingHistory || []).map((msg) => ({
+          ...msg,
+          timestamp: new Date().toISOString()
+        })),
+        { 
+          role: 'assistant', 
+          content: req.__groqResponse || analysis,
+          timestamp: new Date().toISOString()
+        },
+        { 
+          role: 'system', 
+          content: `Final Grade: ${score}/100 - ${passed ? 'PASSED ✅' : 'FAILED ❌'}\n\nAnalysis: ${analysis}\n\nHints: ${hints.join(', ') || 'None'}`,
+          timestamp: new Date().toISOString()
+        }
+      ];
+      
+      // Get user from request
+      const { getUserFromRequest } = await import('@/lib/auth');
+      const { user } = await getUserFromRequest(req);
+      
+      if (user && taskId) {
+        console.log(`[Assistant] User authenticated: ${user.id}. Calling grade endpoint...`);
+        
+        // Call the grade endpoint to complete the task
+        const gradeResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/tasks/${taskId}/grade`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cookie': req.headers.get('cookie') || ''
+          },
+          body: JSON.stringify({
+            conversation,
+            score,
+            notes: `Completed via Challenge Bot. ${hints.length > 0 ? 'Hints: ' + hints.join(', ') : ''}`
+          })
+        });
+        
+        if (gradeResponse.ok) {
+          const gradeData = await gradeResponse.json();
+          console.log(`[Assistant] ✅ Task completed successfully!`, gradeData);
+          out.taskCompleted = true;
+          out.message = '🎉 Task completed! NFT badge is being minted...';
+        } else {
+          const errorText = await gradeResponse.text();
+          console.error('[Assistant] ❌ Failed to complete task:', gradeResponse.status, errorText);
+          out.taskCompletionError = errorText;
+        }
+      } else {
+        console.error('[Assistant] Missing user or taskId:', { hasUser: !!user, taskId });
+      }
+    } catch (error) {
+      console.error('[Assistant] Error completing task:', error);
+      out.taskCompletionError = error.message;
+    }
+  }
+  
   return NextResponse.json(out);
   } catch (e) {
     return NextResponse.json({ error: e?.message || 'Server error' }, { status: 500 });

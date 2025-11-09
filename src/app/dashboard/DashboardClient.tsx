@@ -6,6 +6,8 @@ import { signOut } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SurveyModal from '@/components/SurveyModal';
+import useSWR from 'swr';
+import { Loader2, Medal, Users } from 'lucide-react';
 
 interface User {
   id: string;
@@ -16,12 +18,43 @@ interface User {
   level?: number;
 }
 
+interface LeaderboardEntry {
+  _id: string;
+  rank: number;
+  totalBadges: number;
+  totalScore: number;
+  avgScore: number;
+  languages: string[];
+  diamondBadges: number;
+  goldBadges: number;
+  silverBadges: number;
+  bronzeBadges: number;
+  userName: string;
+  userAvatar?: string;
+}
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export default function DashboardClient({ initialUser }: { initialUser: User | null }) {
   const [user, setUser] = useState<User | null>(null); // Start with null to force fresh fetch
   const [loading, setLoading] = useState<boolean>(true); // Always start loading
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [onboardingData, setOnboardingData] = useState<any>(null);
   const router = useRouter();
+
+  // Leaderboard state
+  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
+
+  // Fetch leaderboard data with language filter
+  const { data: leaderboardData, isLoading: leaderboardLoading } = useSWR<{ leaderboard: LeaderboardEntry[] }>(
+    selectedLanguage
+      ? `/api/achievements/leaderboard?language=${selectedLanguage}&limit=100`
+      : `/api/achievements/leaderboard?limit=100`,
+    fetcher
+  );
+
+  const leaderboard = leaderboardData?.leaderboard || [];
+  const languages = ['Python', 'JavaScript', 'TypeScript', 'Java', 'C++', 'Rust'];
 
   useEffect(() => {
     // Always fetch fresh user data on mount to avoid showing cached data
@@ -121,15 +154,15 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
           <div className="github-card-arrow">→</div>
   </Link>
 
-  <Link href="/dashboard/calendar" className="github-card github-card-interactive">
+  <Link href="/dashboard/tasks" className="github-card github-card-interactive">
           <div className="github-card-icon github-card-icon-calendar">
             <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M4.75 0a.75.75 0 01.75.75V2h5V.75a.75.75 0 011.5 0V2h1.25c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0113.25 16H2.75A1.75 1.75 0 011 14.25V3.75C1 2.784 1.784 2 2.75 2H4V.75A.75.75 0 014.75 0zm0 3.5h8.5a.25.25 0 01.25.25V6h-11V3.75a.25.25 0 01.25-.25h2.5z"/>
+              <path d="M2.5 3.5v9c0 .28.22.5.5.5h10a.5.5 0 00.5-.5v-9a.5.5 0 00-.5-.5H3a.5.5 0 00-.5.5zM3 2h10a2 2 0 012 2v9a2 2 0 01-2 2H3a2 2 0 01-2-2V4a2 2 0 012-2zm6.854 5.854l-3 3a.5.5 0 01-.708 0l-1.5-1.5a.5.5 0 01.708-.708L6.5 9.793l2.646-2.647a.5.5 0 01.708.708z"/>
             </svg>
           </div>
           <div className="github-card-content">
-            <div className="github-card-title">Calendar</div>
-            <div className="github-card-description">Plan your day and track upcoming tasks</div>
+            <div className="github-card-title">Tasks</div>
+            <div className="github-card-description">Manage your tasks with Kanban board and AI recommendations</div>
           </div>
           <div className="github-card-arrow">→</div>
   </Link>
@@ -173,6 +206,161 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
           </div>
           <div className="github-card-arrow">→</div>
   </Link>
+      </div>
+
+      {/* Full Leaderboard Section */}
+      <div style={{ marginTop: '32px' }}>
+        {/* Header with Language Filters */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <Medal className="w-6 h-6" style={{ color: '#eab308' }} />
+            <h2 style={{ fontSize: '24px', fontWeight: 700, margin: 0 }}>Leaderboard</h2>
+          </div>
+
+          {/* Language Filter Buttons */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            <button
+              onClick={() => setSelectedLanguage(null)}
+              className="github-btn"
+              style={{
+                padding: '8px 16px',
+                background: selectedLanguage === null ? 'var(--accent)' : 'var(--card)',
+                color: selectedLanguage === null ? 'white' : 'var(--fg)',
+                border: selectedLanguage === null ? 'none' : '1px solid var(--border)',
+                fontWeight: 500
+              }}
+            >
+              All Languages
+            </button>
+            {languages.map((lang) => (
+              <button
+                key={lang}
+                onClick={() => setSelectedLanguage(lang)}
+                className="github-btn"
+                style={{
+                  padding: '8px 16px',
+                  background: selectedLanguage === lang ? 'var(--accent)' : 'var(--card)',
+                  color: selectedLanguage === lang ? 'white' : 'var(--fg)',
+                  border: selectedLanguage === lang ? 'none' : '1px solid var(--border)',
+                  fontWeight: 500
+                }}
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Leaderboard Content */}
+        {leaderboardLoading ? (
+          <div className="github-card" style={{ padding: '60px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent)' }} />
+          </div>
+        ) : leaderboard.length === 0 ? (
+          <div className="github-card" style={{ padding: '60px', textAlign: 'center', color: 'var(--muted)' }}>
+            <Users className="w-16 h-16" style={{ margin: '0 auto 16px', opacity: 0.3 }} />
+            <p style={{ fontSize: '18px', fontWeight: 500 }}>No participants yet</p>
+            <p style={{ fontSize: '14px', marginTop: '8px' }}>Be the first to earn achievements!</p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: '12px' }}>
+            {leaderboard.map((entry) => {
+              const getRankColor = (rank: number) => {
+                if (rank === 1) return 'linear-gradient(135deg, #fbbf24, #f59e0b)';
+                if (rank === 2) return 'linear-gradient(135deg, #d1d5db, #9ca3af)';
+                if (rank === 3) return 'linear-gradient(135deg, #fb923c, #ea580c)';
+                return 'linear-gradient(135deg, #6b7280, #374151)';
+              };
+
+              const getRankMedal = (rank: number) => {
+                if (rank === 1) return '🥇';
+                if (rank === 2) return '🥈';
+                if (rank === 3) return '🥉';
+                return `#${rank}`;
+              };
+
+              return (
+                <div 
+                  key={entry._id} 
+                  className="github-card" 
+                  style={{ 
+                    padding: '20px',
+                    transition: 'all 0.2s',
+                    cursor: 'default'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    {/* Rank Medal */}
+                    <div style={{ 
+                      width: '60px', 
+                      height: '60px', 
+                      borderRadius: '12px', 
+                      background: getRankColor(entry.rank),
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      fontSize: '24px',
+                      fontWeight: 'bold',
+                      color: 'white',
+                      flexShrink: 0,
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+                    }}>
+                      {getRankMedal(entry.rank)}
+                    </div>
+
+                    {/* User Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                        <p style={{ fontWeight: 700, fontSize: '18px', margin: 0, color: 'var(--fg)' }}>
+                          {entry.userName}
+                        </p>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          {entry.diamondBadges > 0 && (
+                            <span title={`${entry.diamondBadges} Diamond badges`} style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                              💎 <span style={{ fontSize: '14px', fontWeight: 600 }}>{entry.diamondBadges}</span>
+                            </span>
+                          )}
+                          {entry.goldBadges > 0 && (
+                            <span title={`${entry.goldBadges} Gold badges`} style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                              🥇 <span style={{ fontSize: '14px', fontWeight: 600 }}>{entry.goldBadges}</span>
+                            </span>
+                          )}
+                          {entry.silverBadges > 0 && (
+                            <span title={`${entry.silverBadges} Silver badges`} style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                              🥈 <span style={{ fontSize: '14px', fontWeight: 600 }}>{entry.silverBadges}</span>
+                            </span>
+                          )}
+                          {entry.bronzeBadges > 0 && (
+                            <span title={`${entry.bronzeBadges} Bronze badges`} style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                              � <span style={{ fontSize: '14px', fontWeight: 600 }}>{entry.bronzeBadges}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '14px', color: 'var(--muted)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                        <span>{entry.languages.join(', ')}</span>
+                        <span>•</span>
+                        <span>Avg Score: <strong>{entry.avgScore.toFixed(1)}%</strong></span>
+                        <span>•</span>
+                        <span>Total Score: <strong>{entry.totalScore}</strong></span>
+                      </div>
+                    </div>
+
+                    {/* Total Badges Count */}
+                    <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                      <div style={{ fontSize: '32px', fontWeight: 900, color: 'var(--accent)', lineHeight: 1 }}>
+                        {entry.totalBadges}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', textTransform: 'uppercase', fontWeight: 600, marginTop: '4px' }}>
+                        {entry.totalBadges === 1 ? 'Badge' : 'Badges'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Onboarding Modal - Optional */}

@@ -83,27 +83,24 @@ export async function POST(request) {
 
     await connectToDatabase();
 
-    // Update existing conversation (append new messages)
+    // Update existing conversation
     if (conversationId) {
-      const conversation = await Conversation.findOne({ _id: conversationId, userId: user._id, chatType });
+      const conversation = await Conversation.findOneAndUpdate(
+        { _id: conversationId, userId: user._id, chatType },
+        {
+          $set: {
+            title: title || undefined,
+            messages: messages || undefined,
+            updatedAt: new Date()
+          }
+        },
+        { new: true, runValidators: true }
+      );
+
       if (!conversation) {
         return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
       }
-      // Only append new messages that are not already in the conversation
-      let newMessages = Array.isArray(messages) ? messages : [];
-      // Find the index of the last message in the existing conversation
-      let lastId = conversation.messages?.length ? conversation.messages[conversation.messages.length - 1]._id?.toString() : null;
-      let toAppend = newMessages;
-      if (lastId) {
-        const lastIdx = newMessages.findIndex(m => m._id === lastId);
-        if (lastIdx !== -1) {
-          toAppend = newMessages.slice(lastIdx + 1);
-        }
-      }
-      conversation.title = title || conversation.title;
-      conversation.messages = [...(conversation.messages || []), ...toAppend];
-      conversation.updatedAt = new Date();
-      await conversation.save();
+
       return NextResponse.json({
         success: true,
         conversation: {

@@ -75,15 +75,15 @@ export default function DashboardPage() {
           <div className="github-card-arrow">→</div>
         </a>
 
-        <a href="/dashboard/calendar" className="github-card github-card-interactive">
+        <a href="/dashboard/tasks" className="github-card github-card-interactive">
           <div className="github-card-icon github-card-icon-calendar">
             <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M4.75 0a.75.75 0 01.75.75V2h5V.75a.75.75 0 011.5 0V2h1.25c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0113.25 16H2.75A1.75 1.75 0 011 14.25V3.75C1 2.784 1.784 2 2.75 2H4V.75A.75.75 0 014.75 0zm0 3.5h8.5a.25.25 0 01.25.25V6h-11V3.75a.25.25 0 01.25-.25h2.5z"/>
+              <path d="M2.5 3.5v9c0 .28.22.5.5.5h10a.5.5 0 00.5-.5v-9a.5.5 0 00-.5-.5H3a.5.5 0 00-.5.5zM3 2h10a2 2 0 012 2v9a2 2 0 01-2 2H3a2 2 0 01-2-2V4a2 2 0 012-2zm6.854 5.854l-3 3a.5.5 0 01-.708 0l-1.5-1.5a.5.5 0 01.708-.708L6.5 9.793l2.646-2.647a.5.5 0 01.708.708z"/>
             </svg>
           </div>
           <div className="github-card-content">
-            <div className="github-card-title">Calendar</div>
-            <div className="github-card-description">Plan your day and track upcoming tasks</div>
+            <div className="github-card-title">Tasks</div>
+            <div className="github-card-description">Manage your tasks with Kanban board and AI recommendations</div>
           </div>
           <div className="github-card-arrow">→</div>
         </a>
