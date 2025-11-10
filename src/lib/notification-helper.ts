@@ -1,5 +1,6 @@
 /**
  * Helper functions for sending Firebase notifications for various user events
+ * with rate limiting to prevent notification spam
  */
 
 import { sendFirebaseNotificationToUser } from './firebase-admin';
@@ -12,10 +13,39 @@ interface NotificationConfig {
   icon?: string;
 }
 
+// Rate limiting: Track last notification time per user per notification type
+// Format: "userId:notificationType" -> timestamp
+const lastNotificationTime = new Map<string, number>();
+
+// Minimum time between notifications of the same type for the same user (in ms)
+const RATE_LIMIT_MS = 60 * 1000; // 1 minute
+
 /**
- * Send a notification to a user
+ * Check if enough time has passed since last notification
  */
-export async function sendUserNotification(config: NotificationConfig) {
+function canSendNotification(userId: string, notificationType: string): boolean {
+  const key = `${userId}:${notificationType}`;
+  const lastTime = lastNotificationTime.get(key);
+  const now = Date.now();
+  
+  if (!lastTime || (now - lastTime) >= RATE_LIMIT_MS) {
+    lastNotificationTime.set(key, now);
+    return true;
+  }
+  
+  console.log(`⏸️ Rate limit: Skipping ${notificationType} notification for user ${userId} (last sent ${Math.round((now - lastTime) / 1000)}s ago)`);
+  return false;
+}
+
+/**
+ * Send a notification to a user (with rate limiting)
+ */
+export async function sendUserNotification(config: NotificationConfig, notificationType: string = 'generic') {
+  // Check rate limit
+  if (!canSendNotification(config.userId, notificationType)) {
+    return;
+  }
+  
   try {
     await sendFirebaseNotificationToUser(config.userId, {
       title: config.title,
@@ -38,7 +68,7 @@ export async function notifyPremiumUpgrade(userId: string) {
     title: '🎉 Welcome to Premium!',
     body: 'You now have access to all premium features. Enjoy!',
     url: '/dashboard/premium',
-  });
+  }, 'premium-upgrade');
 }
 
 /**
@@ -50,7 +80,7 @@ export async function notifyPasswordReset(userId: string, email: string) {
     title: '🔐 Password Reset Requested',
     body: `A password reset link has been sent to ${email}. Check your email.`,
     url: '/dashboard',
-  });
+  }, 'password-reset');
 }
 
 /**
@@ -62,7 +92,7 @@ export async function notifyPasswordChanged(userId: string) {
     title: '✅ Password Changed',
     body: 'Your password has been successfully updated. If this wasn\'t you, contact support immediately.',
     url: '/dashboard/profile',
-  });
+  }, 'password-changed');
 }
 
 /**
@@ -74,7 +104,7 @@ export async function notify2FAEnabled(userId: string) {
     title: '🔒 Two-Factor Authentication Enabled',
     body: 'Your account is now more secure with 2FA enabled.',
     url: '/dashboard/profile',
-  });
+  }, '2fa-enabled');
 }
 
 /**
@@ -86,7 +116,7 @@ export async function notify2FADisabled(userId: string) {
     title: '⚠️ Two-Factor Authentication Disabled',
     body: 'Your 2FA has been disabled. Your account is less secure now.',
     url: '/dashboard/profile',
-  });
+  }, '2fa-disabled');
 }
 
 /**
@@ -98,7 +128,7 @@ export async function notifyFaceRecognitionEnabled(userId: string) {
     title: '🎭 Face Recognition Enabled',
     body: 'Face recognition has been successfully set up for your account.',
     url: '/dashboard/profile',
-  });
+  }, 'face-recognition-enabled');
 }
 
 /**
@@ -110,7 +140,7 @@ export async function notifyReclamationSubmitted(userId: string, subject: string
     title: '📝 Reclamation Submitted',
     body: `Your reclamation "${subject}" has been submitted. We'll review it soon.`,
     url: '/dashboard',
-  });
+  }, 'reclamation-submitted');
 }
 
 /**
@@ -122,11 +152,11 @@ export async function notifyReclamationResponse(userId: string, subject: string)
     title: '💬 Reclamation Response',
     body: `You have a new response to your reclamation "${subject}".`,
     url: '/dashboard',
-  });
+  }, 'reclamation-response');
 }
 
 /**
- * New login detected
+ * New login detected (rate limited to prevent spam on multiple logins)
  */
 export async function notifyNewLogin(userId: string, deviceInfo?: string) {
   await sendUserNotification({
@@ -136,7 +166,7 @@ export async function notifyNewLogin(userId: string, deviceInfo?: string) {
       ? `New login from ${deviceInfo}. If this wasn't you, secure your account immediately.`
       : 'New login to your account detected. If this wasn\'t you, secure your account immediately.',
     url: '/dashboard/profile',
-  });
+  }, 'login');
 }
 
 /**
@@ -150,7 +180,7 @@ export async function notifyAccountCreated(userId: string, name?: string) {
       ? `Welcome ${name}! Your account has been created. Start exploring now!`
       : 'Your account has been created successfully. Start exploring now!',
     url: '/dashboard',
-  });
+  }, 'account-created');
 }
 
 /**
@@ -162,11 +192,11 @@ export async function notifyLogout(userId: string) {
     title: '👋 Logged Out',
     body: 'You have been successfully logged out of your account.',
     url: '/auth/login',
-  });
+  }, 'logout');
 }
 
 /**
- * Profile updated
+ * Profile updated (rate limited to prevent spam on multiple updates)
  */
 export async function notifyProfileUpdated(userId: string) {
   await sendUserNotification({
@@ -174,7 +204,7 @@ export async function notifyProfileUpdated(userId: string) {
     title: '✅ Profile Updated',
     body: 'Your profile has been updated successfully.',
     url: '/dashboard/profile',
-  });
+  }, 'profile-updated');
 }
 
 /**
@@ -186,7 +216,7 @@ export async function notifyReclamationUpdated(userId: string, title: string) {
     title: '✏️ Reclamation Updated',
     body: `Your reclamation "${title}" has been updated successfully.`,
     url: '/dashboard/profile',
-  });
+  }, 'reclamation-updated');
 }
 
 /**
@@ -198,7 +228,7 @@ export async function notifyReclamationDeleted(userId: string) {
     title: '🗑️ Reclamation Deleted',
     body: 'Your reclamation has been deleted successfully.',
     url: '/dashboard/profile',
-  });
+  }, 'reclamation-deleted');
 }
 
 /**
@@ -210,11 +240,11 @@ export async function notify2FAVerified(userId: string) {
     title: '✅ 2FA Verified',
     body: 'Two-factor authentication code verified successfully.',
     url: '/dashboard',
-  });
+  }, '2fa-verified');
 }
 
 /**
- * Login successful
+ * Login successful (welcome back message - rate limited)
  */
 export async function notifyLoginSuccess(userId: string, name?: string) {
   await sendUserNotification({
@@ -222,5 +252,5 @@ export async function notifyLoginSuccess(userId: string, name?: string) {
     title: '👋 Welcome Back!',
     body: name ? `Welcome back, ${name}!` : 'You have logged in successfully.',
     url: '/dashboard',
-  });
+  }, 'login-success');
 }

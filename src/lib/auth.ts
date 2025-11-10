@@ -74,15 +74,13 @@ export const auth = betterAuth({
     async sessionCreated({ user, provider }: { user: any, provider?: string }) {
         console.log('[BetterAuth] sessionCreated event fired', { user, provider });
             
-            // Send push notification for new login
-            if (user.id) {
-                await notifyNewLogin(user.id).catch(err => 
-                    console.error('Failed to send login push notification:', err)
-                );
-            }
+            // NOTE: Login notifications are handled by /api/after-login endpoint
+            // to prevent duplicate notifications. This event fires multiple times
+            // so we disable notifications here.
             
-            // Send login notification email
-            if (process.env.GMAIL_USER && process.env.GMAIL_PASS) {
+            // Send login notification email ONLY for OAuth providers
+            // Regular login emails are handled by /api/after-login
+            if (process.env.GMAIL_USER && process.env.GMAIL_PASS && provider) {
                 try {
                     const transporter = nodemailer.createTransport({
                         service: 'gmail',
@@ -91,7 +89,7 @@ export const auth = betterAuth({
                             pass: process.env.GMAIL_PASS,
                         },
                     });
-                    // Send welcome email on every Google sign-in
+                    // Send welcome email on OAuth sign-in
                     if (provider === 'google') {
                         const mailOptions = {
                             from: process.env.GMAIL_USER,

@@ -138,9 +138,14 @@ export default function Header() {
 
           <Link href={mounted && localUser ? "/dashboard" : "/"} className="github-brand">
             <div className="github-logo-icon">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="github-logo-svg">
-                <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
-              </svg>
+              <Image 
+                src="/144.png" 
+                alt="RiseUP Logo" 
+                width={36} 
+                height={36}
+                className="github-logo-img"
+                priority
+              />
             </div>
             <div className="github-brand-text">
               <span className="github-brand-name">RiseUP</span>

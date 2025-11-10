@@ -53,8 +53,26 @@ export async function POST(req: NextRequest) {
 
     const recognitionData = await faceApiResponse.json();
 
+    console.log('🔍 Face Recognition Result:', {
+      recognized: recognitionData.recognized,
+      user_id: recognitionData.user_id,
+      user_email: recognitionData.user_email,
+      worker_id: recognitionData.worker_id,
+      confidence: recognitionData.confidence_score,
+      threshold: recognitionData.threshold_used,
+      targetEmail: userEmail
+    });
+
     // Check if recognized face matches the target user email
-    const isMatch = recognitionData.recognized && recognitionData.user_email === userEmail;
+    // The Face API returns worker_id, user_id, and user_email (all same value: email)
+    const detectedEmail = recognitionData.worker_id || recognitionData.user_id || recognitionData.user_email;
+    const isMatch = recognitionData.recognized && detectedEmail === userEmail;
+
+    console.log('✅ Match Result:', {
+      isMatch,
+      detectedEmail,
+      targetEmail: userEmail
+    });
 
     return NextResponse.json({
       success: isMatch,
@@ -63,14 +81,16 @@ export async function POST(req: NextRequest) {
       threshold: recognitionData.threshold_used,
       message: isMatch 
         ? 'Face verified successfully' 
-        : 'Face does not match registered user',
+        : recognitionData.recognized 
+          ? `Face recognized but belongs to different user (${detectedEmail})`
+          : 'Face not recognized',
       details: {
         recognized: recognitionData.recognized,
-        detectedUser: recognitionData.user_email, // Changed from worker_id
+        detectedUser: detectedEmail,
         currentUser: userEmail,
         detectionQuality: recognitionData.detection_quality,
         comparisonStats: recognitionData.comparison_stats,
-        userDetails: recognitionData.user_details,
+        userDetails: recognitionData.worker_details || recognitionData.user_details,
       },
     });
   } catch (error: any) {

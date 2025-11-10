@@ -25,17 +25,26 @@ export async function GET(req) {
 
     // Fetch specific conversation
     if (id) {
+      console.log('📖 Fetching conversation by ID:', id, 'for user:', user._id);
       const conversation = await GradingConversation.findOne({
         _id: id,
         userId: user._id
       }).lean();
 
       if (!conversation) {
+        console.log('❌ Conversation not found:', id);
         return new Response(
           JSON.stringify({ error: 'Conversation not found' }),
           { status: 404 }
         );
       }
+
+      console.log('✅ Conversation found:', {
+        id: conversation._id.toString(),
+        title: conversation.title,
+        messageCount: conversation.messages?.length || 0,
+        messages: conversation.messages
+      });
 
       return new Response(
         JSON.stringify({ 

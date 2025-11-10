@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useUser } from '@/lib/user-client';
 import { requestNotificationPermission, setupMessageListener } from '@/lib/firebase';
 
@@ -7,6 +7,7 @@ export default function FirebasePushSubscriber() {
   const [isSupported, setIsSupported] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const { user } = useUser();
+  const hasSubscribed = useRef(false); // Prevent multiple subscriptions
 
   useEffect(() => {
     // Check if notifications are supported
@@ -16,7 +17,8 @@ export default function FirebasePushSubscriber() {
   }, []);
 
   useEffect(() => {
-    if (!isSupported || !user) return;
+    // Prevent multiple subscriptions
+    if (!isSupported || !user || hasSubscribed.current) return;
 
     const setupNotifications = async () => {
       try {
@@ -25,6 +27,7 @@ export default function FirebasePushSubscriber() {
         
         if (fcmToken) {
           setToken(fcmToken);
+          hasSubscribed.current = true; // Mark as subscribed
           
           // Save token to backend
           const u = user as unknown as Record<string, unknown> | null;

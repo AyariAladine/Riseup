@@ -1,86 +1,58 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { connectToDatabase } from '@/lib/mongodb';
 import { auth } from '@/lib/auth';
-// @ts-ignore - bcryptjs doesn't have proper TypeScript definitions
-import bcrypt from 'bcryptjs';
 
 export async function POST(req: NextRequest) {
+  console.log('Set password with face - Request received');
+  
   try {
-    // Get the session
     const session = await auth.api.getSession({
       headers: await headers()
     });
 
+    console.log('Session:', { 
+      hasSession: !!session, 
+      userId: session?.user?.id,
+      userEmail: session?.user?.email 
+    });
+
     if (!session?.user?.id) {
+      console.log('No session found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { newPassword } = await req.json();
+    console.log('New password length:', newPassword?.length);
 
-    // Validate password
     if (!newPassword || newPassword.length < 8) {
       return NextResponse.json({ 
         error: 'Password must be at least 8 characters long' 
       }, { status: 400 });
     }
 
-    // Connect to database
-    const { db } = await connectToDatabase();
-    
-    // Check if user is premium (has face recognition enabled)
-    const user = await db.collection('users').findOne({ 
-      _id: session.user.id 
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    if (!user.isPremium) {
-      return NextResponse.json({ 
-        error: 'Face recognition is only available for premium users' 
-      }, { status: 403 });
-    }
-
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update user password
-    await db.collection('users').updateOne(
-      { _id: session.user.id },
-      { 
-        $set: { 
-          password: hashedPassword,
-          updatedAt: new Date()
-        } 
-      }
-    );
-
-    // Send password changed notification
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'}/api/notifications/password-changed`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: session.user.id,
-          method: 'face-verification'
-        })
+      await auth.api.setPassword({
+        body: {
+          newPassword: newPassword,
+        },
+        headers: await headers()
       });
-    } catch (notifError) {
-      // Don't fail the request if notification fails
-      console.error('Failed to send notification:', notifError);
-    }
 
-    return NextResponse.json({ 
-      success: true,
-      message: 'Password set successfully with face verification' 
-    });
+      console.log('Password set successfully using Better Auth API');
+
+      return NextResponse.json({ 
+        success: true,
+        message: 'Password set successfully with face verification' 
+      });
+    } catch (authError: any) {
+      console.error('Better Auth setPassword error:', authError);
+      throw authError;
+    }
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error setting password with face:', error);
     return NextResponse.json({ 
-      error: 'Failed to set password' 
+      error: error.message || 'Failed to set password' 
     }, { status: 500 });
   }
 }

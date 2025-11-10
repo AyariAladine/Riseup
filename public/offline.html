@@ -3,58 +3,291 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b0d0f">
   <title>Offline - RiseUP</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      background: #18181b;
-      color: #f1f5f9;
-      font-family: system-ui, sans-serif;
+      background: linear-gradient(135deg, #0b0d0f 0%, #161b22 100%);
+      color: #f0f6fc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      margin: 0;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
     }
+
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        circle at 50% 50%,
+        rgba(88, 166, 255, 0.05) 0%,
+        transparent 50%
+      );
+      pointer-events: none;
+    }
+
     .offline-container {
-      background: #23232a;
+      background: rgba(22, 27, 34, 0.85);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(88, 166, 255, 0.15);
       border-radius: 16px;
-      padding: 32px 24px;
-      box-shadow: 0 2px 16px rgba(0,0,0,0.12);
-      max-width: 400px;
+      padding: 48px 32px;
+      box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.3),
+        0 0 40px rgba(88, 166, 255, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      max-width: 480px;
+      width: 100%;
       text-align: center;
+      position: relative;
+      z-index: 1;
+      animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .logo-container {
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      box-shadow: 
+        0 8px 24px rgba(0, 0, 0, 0.2),
+        0 0 20px rgba(88, 166, 255, 0.2);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.85;
+        transform: scale(0.98);
+      }
+    }
+
+    .offline-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 24px;
+      opacity: 0.7;
+    }
+
     h1 {
       font-size: 2rem;
-      margin-bottom: 12px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #58a6ff 0%, #bc8cff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
+
     p {
-      font-size: 1.1rem;
-      margin-bottom: 18px;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #8b949e;
+      margin-bottom: 24px;
     }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 32px;
+      padding: 12px 20px;
+      background: rgba(255, 126, 182, 0.1);
+      border: 1px solid rgba(255, 126, 182, 0.2);
+      border-radius: 8px;
+      color: #ff7eb6;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #ff7eb6;
+      border-radius: 50%;
+      animation: blink 1.5s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
     button {
-      background: #6366f1;
-      color: #fff;
+      background: linear-gradient(135deg, #58a6ff 0%, #4493f8 100%);
+      color: #ffffff;
       border: none;
       border-radius: 8px;
-      padding: 10px 24px;
+      padding: 12px 32px;
       font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
-      margin-top: 12px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(88, 166, 255, 0.2);
+      position: relative;
+      overflow: hidden;
     }
+
+    button::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 
+        0 6px 20px rgba(88, 166, 255, 0.3),
+        0 0 20px rgba(88, 166, 255, 0.2);
+    }
+
     button:active {
-      background: #4338ca;
+      transform: translateY(0);
+    }
+
+    button:active::after {
+      width: 300px;
+      height: 300px;
+    }
+
+    .cached-pages {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(88, 166, 255, 0.1);
+    }
+
+    .cached-pages h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #8b949e;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .cached-links {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .cached-link {
+      display: inline-block;
+      padding: 8px 16px;
+      background: rgba(88, 166, 255, 0.05);
+      border: 1px solid rgba(88, 166, 255, 0.1);
+      border-radius: 6px;
+      color: #58a6ff;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .cached-link:hover {
+      background: rgba(88, 166, 255, 0.1);
+      border-color: rgba(88, 166, 255, 0.2);
+      transform: translateX(4px);
+    }
+
+    @media (max-width: 480px) {
+      .offline-container {
+        padding: 32px 24px;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .logo {
+        width: 64px;
+        height: 64px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="offline-container">
-    <h1>Offline Mode</h1>
-    <p>You are currently offline.<br>
-    Pages you have visited before should be available.<br>
-    Please check your connection or try again later.</p>
-    <button onclick="location.reload()">Try Again</button>
+    <div class="logo-container">
+      <img src="/144.png" alt="RiseUP Logo" class="logo">
+    </div>
+    
+    <h1>You're Offline</h1>
+    
+    <div class="status-indicator">
+      <span class="status-dot"></span>
+      <span>No internet connection</span>
+    </div>
+    
+    <p>
+      Don't worry! Pages you've visited are cached and available offline.
+      Check your connection and try again.
+    </p>
+    
+    <button onclick="location.reload()">
+      <span>Retry Connection</span>
+    </button>
+
+    <div class="cached-pages">
+      <h2>Available Offline</h2>
+      <div class="cached-links">
+        <a href="/" class="cached-link">Dashboard</a>
+        <a href="/dashboard/tasks" class="cached-link">Tasks</a>
+        <a href="/learn" class="cached-link">Learn</a>
+        <a href="/dashboard/profile" class="cached-link">Profile</a>
+      </div>
+    </div>
   </div>
+
+  <script>
+    // Check online status
+    window.addEventListener('online', () => {
+      location.reload();
+    });
+
+    // Update connection status
+    if (navigator.onLine) {
+      location.reload();
+    }
+  </script>
 </body>
 </html>

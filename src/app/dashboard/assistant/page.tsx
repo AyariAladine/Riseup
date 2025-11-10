@@ -58,6 +58,7 @@ export default function ChallengeBotPage() {
   }
   const [input, setInput] = useState('');
   const [upload, setUpload] = useState<File | null>(null);
+  const [loadingConversation, setLoadingConversation] = useState(false);
   const [image, setImage] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -135,21 +136,36 @@ export default function ChallengeBotPage() {
 
   async function loadConversation(id: string) {
     try {
+      setLoadingConversation(true);
+      console.log('🔄 Loading conversation:', id);
       const res = await fetch(`/api/grading-history?id=${id}`);
-      console.log('Fetching conversation:', `/api/grading-history?id=${id}`);
-      const raw = await res.clone().text();
-      console.log('Raw response:', raw);
+      
       if (res.ok) {
         const data = await res.json();
-        console.log('Conversation API response:', data);
-        setMessages(data.messages || []);
-        setCurrentConversationId(id);
+        console.log('📥 Conversation loaded:', {
+          id: data.id,
+          title: data.title,
+          messageCount: data.messages?.length || 0,
+          messages: data.messages
+        });
+        
+        if (data.messages && Array.isArray(data.messages)) {
+          setMessages(data.messages);
+          setCurrentConversationId(id);
+          console.log('✅ Messages set in state:', data.messages.length);
+        } else {
+          console.warn('⚠️ No messages array in response:', data);
+          setMessages([]);
+          setCurrentConversationId(id);
+        }
       } else {
         const errorText = await res.text();
-        console.error('Conversation API error:', res.status, errorText);
+        console.error('❌ Conversation API error:', res.status, errorText);
       }
     } catch (error) {
-      console.error('Failed to load conversation:', error);
+      console.error('💥 Failed to load conversation:', error);
+    } finally {
+      setLoadingConversation(false);
     }
   }
 
@@ -379,12 +395,19 @@ export default function ChallengeBotPage() {
         <div className="assistant-main" style={{ flex: 1 }}>
           <div className="github-chat-panel">
             <div id="chat-scroll" className="github-chat-messages">
-              {messages.map((m, i) => (
-                <div key={i} className={`github-chat-message ${m.role === 'user' ? 'github-chat-user' : 'github-chat-assistant'}`}>
-                  <div className="github-chat-role">{m.role === 'user' ? 'You' : m.role === 'assistant' ? 'Challenge Bot' : 'System'}</div>
-                  <div className="github-chat-content">{m.content}</div>
+              {loadingConversation ? (
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                  <div className="github-spinner-sm" style={{ margin: '0 auto 12px' }} />
+                  Loading conversation...
                 </div>
-              ))}
+              ) : (
+                messages.map((m, i) => (
+                  <div key={i} className={`github-chat-message ${m.role === 'user' ? 'github-chat-user' : 'github-chat-assistant'}`}>
+                    <div className="github-chat-role">{m.role === 'user' ? 'You' : m.role === 'assistant' ? 'Challenge Bot' : 'System'}</div>
+                    <div className="github-chat-content">{m.content}</div>
+                  </div>
+                ))
+              )}
             </div>
 
             <div className="github-chat-input-area">

@@ -374,15 +374,9 @@ export default function DashboardProfile() {
       // Update the SWR cache with new data
       mutateProfile();
       
-      // Send Firebase notification
-      try {
-        await fetch('/api/notifications/profile-updated', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-      } catch (err) {
-        console.error('Failed to send profile updated notification:', err);
-      }
+      // NOTE: Disabled profile-updated notification to prevent spam
+      // User already sees success message in UI, notification is redundant
+      // If needed, it's rate-limited to max once per minute in notification-helper.ts
       
       try {
         // notify header about updated name/avatar/preferences

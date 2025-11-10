@@ -2,6 +2,7 @@
 
 import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { signUp, checkEmailExists } from '@/lib/auth-client';
 import FormInput from '@/components/FormInput';
 import PasswordInput from '@/components/PasswordInput';
@@ -63,11 +64,14 @@ export default function SignupPage() {
         <div className="auth-card">
           <div className="auth-header">
             <div className="auth-logo">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 20V10"/>
-                <path d="M12 20V4"/>
-                <path d="M6 20v-6"/>
-              </svg>
+              <Image 
+                src="/144.png" 
+                alt="RiseUP Logo" 
+                width={72} 
+                height={72}
+                priority
+                style={{ borderRadius: '16px' }}
+              />
             </div>
             <h1 className="auth-title">Create account</h1>
             <p className="auth-subtitle">Join RiseUP to start your journey</p>

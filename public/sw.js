@@ -1,21 +1,18 @@
-// Service Worker pour RiseUP PWA
-// Stratégies de cache: Network First pour API, Cache First pour assets statiques
+// RiseUP PWA Service Worker - Enhanced Version
+// Cache strategies: Network First for API, Cache First for static assets
+// Updated: November 2025
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `riseup-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
-// Assets critiques à mettre en cache immédiatement (uniquement statiques)
+// Critical assets to cache immediately
 const CRITICAL_ASSETS = [
-  '/offline',
+  '/offline.html',
   '/manifest.webmanifest',
-  '/icon.svg',
-  '/', // Cache homepage
-  '/dashboard/profile',
-  '/learn',
-  '/learn/',
-  '/dashboard/assistant',
-  '/dashboard/assistant/',
+  '/144.png',
+  '/192.png',
+  '/512.png',
 ];
 
 
@@ -324,21 +321,23 @@ self.addEventListener('sync', (event) => {
   }
 });
 
-// Gestion des notifications push
+// Push notification handler
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push reçu');
+  console.log('[SW] Push notification received');
   
   const data = event.data ? event.data.json() : {};
   const title = data.title || 'RiseUP';
   const options = {
-    body: data.body || 'Nouvelle notification',
-    icon: '/icon-192x192.png',
-    badge: '/icon-72x72.png',
+    body: data.body || 'New notification',
+    icon: '/192.png',
+    badge: '/144.png',
     vibrate: [200, 100, 200],
     data: data.url || '/',
+    tag: data.tag || 'default',
+    requireInteraction: data.requireInteraction || false,
     actions: data.actions || [
-      { action: 'open', title: 'Ouvrir' },
-      { action: 'close', title: 'Fermer' }
+      { action: 'open', title: 'Open', icon: '/144.png' },
+      { action: 'close', title: 'Close' }
     ]
   };
   

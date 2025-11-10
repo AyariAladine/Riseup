@@ -3,6 +3,7 @@
 import { useState, FormEvent, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { setUser as setGlobalUser } from '@/lib/user-client';
 import { signIn, checkEmailExists, twoFactor } from '@/lib/auth-client';
 import FormInput from '@/components/FormInput';
@@ -90,7 +91,7 @@ export default function LoginPage() {
         });
       }
 
-      // Send Firebase push notifications for new login
+      // Send post-login actions (notification will be rate-limited on backend)
       try {
         await fetch('/api/after-login', {
           method: 'POST',
@@ -100,14 +101,8 @@ export default function LoginPage() {
             userName: result.data?.user?.name,
           }),
         });
-        
-        // Send login success notification
-        await fetch('/api/notifications/login-success', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
       } catch (err) {
-        console.error('Failed to send login notification:', err);
+        console.error('Failed to process after-login:', err);
       }
 
       // Server sets HttpOnly cookie with token. Redirect to dashboard.
@@ -148,20 +143,14 @@ export default function LoginPage() {
         keysToRemove.forEach(key => localStorage.removeItem(key));
       } catch {}
 
-      // Send Firebase push notifications for successful 2FA login
+      // Send post-2FA actions (notification will be rate-limited on backend)
       try {
         await fetch('/api/after-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
-        
-        // Send 2FA verified notification
-        await fetch('/api/notifications/2fa-verified', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
       } catch (err) {
-        console.error('Failed to send 2FA login notification:', err);
+        console.error('Failed to process after-login:', err);
       }
 
       router.push('/dashboard');
@@ -179,11 +168,14 @@ export default function LoginPage() {
         <div className="auth-card">
           <div className="auth-header">
             <div className="auth-logo">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 20V10"/>
-                <path d="M12 20V4"/>
-                <path d="M6 20v-6"/>
-              </svg>
+              <Image 
+                src="/144.png" 
+                alt="RiseUP Logo" 
+                width={72} 
+                height={72}
+                priority
+                style={{ borderRadius: '16px' }}
+              />
             </div>
             <h1 className="auth-title">Welcome back</h1>
             <p className="auth-subtitle">Sign in to your RiseUP account</p>

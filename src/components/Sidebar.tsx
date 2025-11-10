@@ -62,7 +62,7 @@ export default function Sidebar() {
     <aside className="github-sidebar" id="app-sidebar">
       <nav className="github-sidebar-nav">
         {items.map((it) => {
-          const active = isClient && (pathname === it.href || (it.href !== '/dashboard/home' && pathname.startsWith(it.href + '/')));
+          const active = isClient && (pathname === it.href || (it.href !== '/dashboard' && pathname.startsWith(it.href + '/')));
           return (
             <Link 
               key={it.href} 
