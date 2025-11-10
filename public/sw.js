@@ -6,13 +6,11 @@ const CACHE_VERSION = 'v4';
 const CACHE_NAME = `riseup-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
-// Critical assets to cache immediately
+// Critical assets to cache immediately (only those that definitely exist)
 const CRITICAL_ASSETS = [
   '/offline.html',
   '/manifest.webmanifest',
   '/144.png',
-  '/192.png',
-  '/512.png',
 ];
 
 
@@ -26,10 +24,24 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME).then(async (cache) => {
       console.log('[SW] Mise en cache des assets critiques:', CRITICAL_ASSETS);
       try {
-        await cache.addAll(CRITICAL_ASSETS);
-        console.log('[SW] Tous les assets critiques ont été mis en cache');
+        // Cache each asset individually to prevent one failure from blocking all
+        const cachePromises = CRITICAL_ASSETS.map(async (url) => {
+          try {
+            const response = await fetch(url);
+            if (response.ok) {
+              await cache.put(url, response);
+              console.log('[SW] Mis en cache:', url);
+            } else {
+              console.warn('[SW] Asset non disponible:', url, response.status);
+            }
+          } catch (err) {
+            console.warn('[SW] Échec de mise en cache:', url, err.message);
+          }
+        });
+        await Promise.all(cachePromises);
+        console.log('[SW] Tous les assets disponibles ont été mis en cache');
       } catch (err) {
-        console.warn('[SW] Échec de mise en cache de certains assets:', err);
+        console.warn('[SW] Erreur lors de la mise en cache:', err);
       }
     }).then(() => {
       console.log('[SW] Installation terminée');

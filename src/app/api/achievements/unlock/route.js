@@ -6,6 +6,7 @@ import Achievement from '@/models/Achievement';
 import User from '@/models/User';
 import { determineBadgeLevel, generateNFTMetadata, generateTokenId, BADGE_CONFIG } from '@/lib/achievement-utils';
 import { TokenMintTransaction, TokenId } from '@hashgraph/sdk';
+import { notifyAchievementUnlocked } from '@/lib/notification-helper';
 
 /**
  * POST /api/achievements/unlock
@@ -174,6 +175,13 @@ export async function POST(req) {
         $set: { walletAddress: walletAddress || user.walletAddress }
       }
     );
+
+    // Send achievement notification
+    try {
+      await notifyAchievementUnlocked(user._id.toString(), `${badge} ${language} Badge`, badge);
+    } catch (notifError) {
+      console.error('Failed to send achievement notification:', notifError);
+    }
 
     // Return success response
     return new Response(

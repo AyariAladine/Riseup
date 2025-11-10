@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 
 export default function Footer() {
+  const [mounted, setMounted] = useState(false);
   const getSystemTheme = () => {
     if (typeof window === 'undefined') return 'dark';
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
@@ -9,10 +10,15 @@ export default function Footer() {
     }
     return 'dark';
   };
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window === 'undefined') return 'dark';
-    return (localStorage.getItem('theme') as 'dark' | 'light') || getSystemTheme();
-  });
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme') as 'dark' | 'light';
+      setTheme(savedTheme || getSystemTheme());
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -39,8 +45,12 @@ export default function Footer() {
         <div className="small muted">© {new Date().getFullYear()} RiseUP</div>
         <div className="row small" style={{ alignItems: 'center', gap: 12 }}>
           <span className="muted">Theme</span>
-          <button className="btn btn-ghost small" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
-            {theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
+          <button 
+            className="btn btn-ghost small" 
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            suppressHydrationWarning
+          >
+            {!mounted ? 'Switch to Light' : theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
           </button>
         </div>
       </div>

@@ -2,7 +2,7 @@ import Task from '@/models/Task';
 import { rateLimit } from '@/lib/rateLimiter';
 import { getUserFromRequest } from '@/lib/auth';
 import { TaskCreateSchema } from '@/features/tasks/schemas';
-import { sendPushToUser } from '@/lib/push';
+import { notifyNewTask } from '@/lib/notification-helper';
 
 export async function GET(req) {
   try {
@@ -79,13 +79,10 @@ export async function POST(req) {
     });
     // Notify user about new task
     try {
-      await sendPushToUser(user._id, {
-        title: 'Task created ✅',
-        body: `"${title}" was added${dueAt ? ` • due ${new Date(dueAt).toLocaleDateString()}` : ''}.`,
-        icon: '/globe.svg',
-        url: '/dashboard/tasks',
-      });
-    } catch { }
+      await notifyNewTask(user._id.toString(), title);
+    } catch (notifError) {
+      console.error('Failed to send task notification:', notifError);
+    }
     return new Response(JSON.stringify({ task }), { status: 201 });
   } catch (err) {
     if (err.message === 'NO_TOKEN' || err.message === 'INVALID_TOKEN') {

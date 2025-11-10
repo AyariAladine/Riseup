@@ -74,9 +74,16 @@ export const auth = betterAuth({
     async sessionCreated({ user, provider }: { user: any, provider?: string }) {
         console.log('[BetterAuth] sessionCreated event fired', { user, provider });
             
-            // NOTE: Login notifications are handled by /api/after-login endpoint
-            // to prevent duplicate notifications. This event fires multiple times
-            // so we disable notifications here.
+            // Send Firebase push notification for OAuth logins (Google, etc.)
+            // Regular email/password logins are handled by /api/after-login endpoint
+            if (provider && user.id) {
+                try {
+                    await notifyNewLogin(user.id, provider === 'google' ? 'Google Account' : 'Social Login');
+                    console.log(`✅ OAuth login notification sent to user ${user.id}`);
+                } catch (notifError) {
+                    console.error('❌ Failed to send OAuth login notification:', notifError);
+                }
+            }
             
             // Send login notification email ONLY for OAuth providers
             // Regular login emails are handled by /api/after-login

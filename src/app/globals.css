@@ -35,25 +35,29 @@
 }
 
 [data-theme="light"] {
-  --bg: #f6f8fa;
-  --bg-gradient: linear-gradient(135deg, #ffffff 0%, #f6f8fa 50%, #eef2f5 100%);
-  --panel: #ffffff;
-  --panel-2: #f6f8fa;
-  --panel-hover: #f3f4f6;
-  --border: rgba(0,0,0,0.08);
-  --border-strong: rgba(0,0,0,0.12);
-  --muted: #57606a;
-  --fg: #1f2328;
-  --accent: #0969da;
-  --accent-hover: #0550ae;
-  --accent-600: #0969da;
-  --success: #1a7f37;
-  --warning: #9a6700;
-  --danger: #cf222e;
-  --purple: #8250df;
-  --glass: rgba(0,0,0,0.02);
-  --shadow: 0 8px 32px rgba(0,0,0,0.08);
-  --shadow-lg: 0 20px 60px rgba(0,0,0,0.15);
+  /* Enhanced Modern Light Theme with Glass Morphism */
+  --bg: #f8fafc;
+  --bg-gradient: linear-gradient(135deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+  --panel: rgba(255, 255, 255, 0.9);
+  --panel-2: rgba(248, 250, 252, 0.95);
+  --panel-hover: rgba(241, 245, 249, 0.95);
+  --border: rgba(148, 163, 184, 0.2);
+  --border-strong: rgba(100, 116, 139, 0.3);
+  --muted: #64748b;
+  --fg: #0f172a;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-600: #1e40af;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --purple: #9333ea;
+  --pink: #ec4899;
+  --orange: #f59e0b;
+  --glass: rgba(255, 255, 255, 0.7);
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.12), 0 8px 25px rgba(0, 0, 0, 0.08);
+  --shadow-colored: 0 8px 32px rgba(37, 99, 235, 0.15);
 }
 
 * { box-sizing: border-box; }
@@ -71,15 +75,24 @@ body {
   background-attachment: fixed;
   color: var(--fg);
   overflow-x: hidden;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji",
-    "Segoe UI Symbol";
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", 
+    Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+}
+
+/* Light mode enhanced background */
+[data-theme="light"] body {
+  background: var(--bg);
+  background-image: 
+    radial-gradient(circle at 20% 10%, rgba(37, 99, 235, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 80% 90%, rgba(147, 51, 234, 0.06) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.04) 0%, transparent 60%);
+  background-attachment: fixed;
 }
 
 /* Mobile viewport optimization */
@@ -895,7 +908,7 @@ label {
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 50;
   overflow-y: auto;
-  padding: 70px 16px 16px;
+  padding: 16px;
   display: block;
   box-shadow: 
     2px 0 24px rgba(0, 0, 0, 0.3),
@@ -1180,6 +1193,235 @@ body[data-drawer='open'] .github-backdrop {
 
 .github-sidebar-item.active .github-sidebar-label {
   color: var(--accent-light);
+}
+
+/* ============================================
+   LIGHT MODE ENHANCEMENTS
+   ============================================ */
+
+/* Light Mode Sidebar */
+[data-theme="light"] .github-sidebar {
+  background: rgba(255, 255, 255, 0.95);
+  border-right: 1px solid rgba(100, 116, 139, 0.15);
+  box-shadow: 
+    2px 0 24px rgba(0, 0, 0, 0.06),
+    2px 0 48px rgba(37, 99, 235, 0.04),
+    inset -1px 0 0 rgba(37, 99, 235, 0.08);
+}
+
+[data-theme="light"] .github-sidebar::before {
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(37, 99, 235, 0.06) 0%,
+    transparent 50%
+  );
+}
+
+[data-theme="light"] .github-sidebar-item {
+  color: var(--fg);
+}
+
+[data-theme="light"] .github-sidebar-item::before {
+  background: rgba(37, 99, 235, 0.04);
+}
+
+[data-theme="light"] .github-sidebar-item:hover {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.25);
+  box-shadow: 
+    0 2px 8px rgba(37, 99, 235, 0.1),
+    0 0 0 1px rgba(37, 99, 235, 0.15) inset;
+}
+
+[data-theme="light"] .github-sidebar-item.active {
+  background: linear-gradient(
+    135deg,
+    rgba(37, 99, 235, 0.12) 0%,
+    rgba(147, 51, 234, 0.08) 100%
+  );
+  border-color: rgba(37, 99, 235, 0.3);
+  box-shadow: 
+    0 2px 12px rgba(37, 99, 235, 0.15),
+    0 0 20px rgba(37, 99, 235, 0.08),
+    inset 0 1px 0 rgba(37, 99, 235, 0.1);
+}
+
+[data-theme="light"] .github-sidebar-item.active::after {
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--accent),
+    transparent
+  );
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+}
+
+[data-theme="light"] .github-sidebar-icon {
+  color: var(--muted);
+}
+
+[data-theme="light"] .github-sidebar-item:hover .github-sidebar-icon {
+  color: var(--accent);
+}
+
+[data-theme="light"] .github-sidebar-item.active .github-sidebar-icon {
+  color: var(--accent);
+  filter: drop-shadow(0 0 4px rgba(37, 99, 235, 0.3));
+}
+
+[data-theme="light"] .github-sidebar-item.active .github-sidebar-label {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Light Mode Backdrop */
+[data-theme="light"] .github-backdrop {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+/* Light Mode Panels and Cards */
+[data-theme="light"] .panel {
+  background: var(--panel);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--border);
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="light"] .panel::before {
+  background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.4), rgba(147, 51, 234, 0.3), transparent);
+  opacity: 0.6;
+}
+
+[data-theme="light"] .panel::after {
+  background: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.06), transparent 60%);
+}
+
+[data-theme="light"] .panel:hover {
+  border-color: var(--border-strong);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 4px 12px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(37, 99, 235, 0.1) inset;
+}
+
+[data-theme="light"] .card {
+  background: var(--panel-2);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  box-shadow: 
+    0 2px 12px rgba(0, 0, 0, 0.04),
+    0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="light"] .card:hover {
+  background: var(--panel-hover);
+  border-color: var(--border-strong);
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Light Mode Header */
+[data-theme="light"] .github-header {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(100, 116, 139, 0.15);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.05),
+    0 1px 20px rgba(37, 99, 235, 0.03);
+}
+
+[data-theme="light"] .github-menu-btn:hover {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+[data-theme="light"] .github-menu-btn:active {
+  background: rgba(37, 99, 235, 0.15);
+}
+
+[data-theme="light"] .github-logo-icon {
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  box-shadow: 
+    0 4px 16px rgba(37, 99, 235, 0.25),
+    0 0 0 1px rgba(37, 99, 235, 0.1) inset;
+}
+
+[data-theme="light"] .github-brand:hover .github-logo-icon {
+  box-shadow: 
+    0 8px 24px rgba(37, 99, 235, 0.35),
+    0 0 0 1px rgba(37, 99, 235, 0.2) inset;
+}
+
+/* Light Mode Buttons */
+[data-theme="light"] .github-btn {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .github-btn:hover {
+  background: var(--panel-hover);
+  border-color: var(--border-strong);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .github-btn-primary {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-600) 100%);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  box-shadow: 
+    0 4px 12px rgba(37, 99, 235, 0.25),
+    0 2px 4px rgba(37, 99, 235, 0.15);
+}
+
+[data-theme="light"] .github-btn-primary:hover {
+  box-shadow: 
+    0 6px 20px rgba(37, 99, 235, 0.35),
+    0 3px 8px rgba(37, 99, 235, 0.2);
+}
+
+/* Light Mode Inputs */
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    inset 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="light"] input:focus,
+[data-theme="light"] textarea:focus,
+[data-theme="light"] select:focus {
+  border-color: var(--accent);
+  box-shadow: 
+    0 0 0 3px rgba(37, 99, 235, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+/* Light Mode Dropdown */
+[data-theme="light"] .github-dropdown {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid var(--border);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(37, 99, 235, 0.05) inset;
+}
+
+[data-theme="light"] .github-dropdown-item:hover {
+  background: rgba(37, 99, 235, 0.08);
 }
 
 /* Calendar Styles */
@@ -1920,7 +2162,7 @@ a { color: var(--accent); }
   margin: 0 !important;
   width: 100% !important;
   box-sizing: border-box;
-  animation: fadeIn 0.4s ease-out;
+  /* Remove animation */
 }
 
 @keyframes fadeIn {
@@ -1931,6 +2173,15 @@ a { color: var(--accent); }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fadeInOnly {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -1947,9 +2198,10 @@ a { color: var(--accent); }
   width: 100%;
   max-width: 440px;
   margin: 0 auto;
-  animation: slideUp 0.5s ease-out;
+  /* Remove animation to prevent shift */
 }
 
+/* Remove the slideUp animation */
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -1968,6 +2220,7 @@ a { color: var(--accent); }
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 48px 40px;
+  /* Remove all animations and transforms */
   box-shadow: 
     0 20px 60px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(255, 255, 255, 0.05) inset;
@@ -2272,6 +2525,221 @@ a { color: var(--accent); }
   .auth-title {
     font-size: 24px;
   }
+}
+
+/* ============================================
+   LIGHT MODE AUTH PAGES
+   ============================================ */
+
+[data-theme="light"] .auth-page {
+  background: var(--bg);
+}
+
+[data-theme="light"] .auth-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--border);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.12),
+    0 8px 25px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(37, 99, 235, 0.08) inset;
+}
+
+[data-theme="light"] .auth-card::before {
+  background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.5), rgba(147, 51, 234, 0.4), rgba(236, 72, 153, 0.3), transparent);
+  opacity: 0.9;
+}
+
+[data-theme="light"] .auth-card::after {
+  background: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.08), transparent 70%);
+}
+
+[data-theme="light"] .auth-logo {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+  box-shadow: 
+    0 8px 32px rgba(37, 99, 235, 0.3),
+    0 0 0 1px rgba(37, 99, 235, 0.15) inset;
+}
+
+[data-theme="light"] .auth-logo::before {
+  background: linear-gradient(135deg, var(--accent), var(--purple), var(--pink));
+  opacity: 0.4;
+  filter: blur(16px);
+}
+
+[data-theme="light"] .auth-error {
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  color: #dc2626;
+}
+
+[data-theme="light"] .auth-success {
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  color: #16a34a;
+}
+
+/* Light Mode Modals & Dialogs */
+[data-theme="light"] .modal-overlay {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+[data-theme="light"] .modal-content {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid var(--border);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(37, 99, 235, 0.08) inset;
+}
+
+/* Light Mode Scrollbars */
+[data-theme="light"] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.5);
+  border-radius: 5px;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 5px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+/* Light Mode Text Selection */
+[data-theme="light"] ::selection {
+  background: rgba(37, 99, 235, 0.2);
+  color: var(--fg);
+}
+
+[data-theme="light"] ::-moz-selection {
+  background: rgba(37, 99, 235, 0.2);
+  color: var(--fg);
+}
+
+/* Light Mode Status Badges */
+[data-theme="light"] .badge,
+[data-theme="light"] .status-badge {
+  background: rgba(37, 99, 235, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  color: var(--accent);
+}
+
+[data-theme="light"] .badge-success {
+  background: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.2);
+  color: var(--success);
+}
+
+[data-theme="light"] .badge-warning {
+  background: rgba(217, 119, 6, 0.1);
+  border-color: rgba(217, 119, 6, 0.2);
+  color: var(--warning);
+}
+
+[data-theme="light"] .badge-danger {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.2);
+  color: var(--danger);
+}
+
+/* Light Mode Progress Bars */
+[data-theme="light"] .progress-bar {
+  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+[data-theme="light"] .progress-fill {
+  background: linear-gradient(90deg, var(--accent) 0%, var(--purple) 100%);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+/* Light Mode Code Blocks */
+[data-theme="light"] code,
+[data-theme="light"] pre {
+  background: rgba(241, 245, 249, 0.8);
+  border: 1px solid var(--border);
+  color: var(--fg);
+}
+
+/* Light Mode Links */
+[data-theme="light"] a {
+  color: var(--accent);
+}
+
+[data-theme="light"] a:hover {
+  color: var(--accent-hover);
+}
+
+/* Light Mode Tooltips */
+[data-theme="light"] .tooltip {
+  background: rgba(15, 23, 42, 0.95);
+  color: #f8fafc;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Light Mode Dividers */
+[data-theme="light"] hr,
+[data-theme="light"] .divider {
+  border-color: var(--border);
+  background: var(--border);
+}
+
+/* Light Mode Footer */
+[data-theme="light"] .footer {
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 -1px 10px rgba(0, 0, 0, 0.03);
+}
+
+/* Light Mode Bottom Bar */
+[data-theme="light"] .bottom-bar {
+  background: rgba(255, 255, 255, 0.98);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 
+    0 -2px 20px rgba(0, 0, 0, 0.05),
+    0 -1px 3px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .bottom-bar-item {
+  color: var(--muted);
+}
+
+[data-theme="light"] .bottom-bar-item:hover,
+[data-theme="light"] .bottom-bar-item.active {
+  color: var(--accent);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+/* Light Mode Tables */
+[data-theme="light"] table {
+  border-color: var(--border);
+}
+
+[data-theme="light"] th {
+  background: rgba(241, 245, 249, 0.8);
+  border-color: var(--border);
+  color: var(--fg);
+}
+
+[data-theme="light"] td {
+  border-color: var(--border);
+  color: var(--fg);
+}
+
+[data-theme="light"] tr:hover {
+  background: rgba(241, 245, 249, 0.5);
 }
 
 /* Mobile Drawer Fixes */

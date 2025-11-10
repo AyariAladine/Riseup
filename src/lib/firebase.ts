@@ -33,6 +33,12 @@ export const getMessagingInstance = (): Messaging | null => {
 // Request notification permission and get FCM token
 export const requestNotificationPermission = async (): Promise<string | null> => {
   try {
+    // Check if Firebase config is complete
+    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+      console.warn('Firebase configuration is incomplete. Notifications disabled.');
+      return null;
+    }
+
     // Check if service worker is supported
     if (!('serviceWorker' in navigator)) {
       console.log('Service Worker not supported');
@@ -93,8 +99,11 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     });
     console.log('FCM Token:', token);
     return token;
-  } catch (error) {
-    console.error('Error getting FCM token:', error);
+  } catch (error: any) {
+    // Only log error if it's not about missing/invalid API key (expected in dev without Firebase config)
+    if (!error?.message?.includes('API key not valid') && !error?.message?.includes('Missing App configuration')) {
+      console.error('Error getting FCM token:', error);
+    }
     return null;
   }
 };

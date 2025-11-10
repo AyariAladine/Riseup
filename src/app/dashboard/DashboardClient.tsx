@@ -56,43 +56,49 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
   const leaderboard = leaderboardData?.leaderboard || [];
   const languages = ['Python', 'JavaScript', 'TypeScript', 'Java', 'C++', 'Rust'];
 
+  // Helper function to check onboarding status
+  const checkOnboarding = async (userId: string) => {
+    try {
+      const onboardingRes = await fetch('/api/onboarding');
+      if (onboardingRes.ok) {
+        const onboardingJson = await onboardingRes.json();
+        setOnboardingData(onboardingJson);
+        // Do NOT auto-show the onboarding modal; user will opt-in
+      }
+    } catch (err) {
+      console.error('Failed to check onboarding status:', err);
+    }
+  };
+
   useEffect(() => {
-    // Always fetch fresh user data on mount to avoid showing cached data
+    // Use initialUser if available to avoid redundant fetch
+    if (initialUser) {
+      setUser(initialUser);
+      setGlobalUser(initialUser);
+      setLoading(false);
+      
+      // Check onboarding after user is set
+      checkOnboarding(initialUser.id);
+      return;
+    }
+
+    // Only fetch if no initialUser provided
     const fetchUser = async () => {
       try {
         const res = await fetch('/api/dashboard', {
           cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
         });
         if (!res.ok) throw new Error('Unauthorized');
 
         const data = await res.json();
         setUser(data.user);
         setGlobalUser(data.user || null);
-        // Trigger welcome/login email after login
-        try {
-          await fetch('/api/after-login', { method: 'POST', credentials: 'include' });
-        } catch (e) {
-          console.warn('Failed to trigger after-login email:', e);
+        
+        if (data.user?.id) {
+          checkOnboarding(data.user.id);
         }
-
-        // Check onboarding status but do not auto-show modal.
-        // Instead show a 'Take questionnaire' button in header if not completed.
-        try {
-          const onboardingRes = await fetch('/api/onboarding');
-          if (onboardingRes.ok) {
-            const onboardingJson = await onboardingRes.json();
-            setOnboardingData(onboardingJson);
-            // Do NOT auto-show the onboarding modal; user will opt-in
-          }
-        } catch (err) {
-          console.error('Failed to check onboarding status:', err);
-        }
-      } catch {
+      } catch (error) {
+        console.error('Error fetching user:', error);
         // Clear session using better-auth and redirect
         await signOut();
         router.push('/auth/login');
@@ -100,8 +106,9 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
         setLoading(false);
       }
     };
+
     fetchUser();
-  }, [router]);
+  }, [initialUser, router]);
 
   // Log when the onboarding modal is toggled (avoid inline console.debug in JSX)
   useEffect(() => {

@@ -161,11 +161,11 @@ export async function notifyReclamationResponse(userId: string, subject: string)
 export async function notifyNewLogin(userId: string, deviceInfo?: string) {
   await sendUserNotification({
     userId,
-    title: '🔔 New Login Detected',
+    title: '👋 Welcome to RiseUp!',
     body: deviceInfo 
-      ? `New login from ${deviceInfo}. If this wasn't you, secure your account immediately.`
-      : 'New login to your account detected. If this wasn\'t you, secure your account immediately.',
-    url: '/dashboard/profile',
+      ? `Welcome back! Login from ${deviceInfo}.`
+      : 'Welcome back to RiseUp!',
+    url: '/dashboard',
   }, 'login');
 }
 
@@ -253,4 +253,66 @@ export async function notifyLoginSuccess(userId: string, name?: string) {
     body: name ? `Welcome back, ${name}!` : 'You have logged in successfully.',
     url: '/dashboard',
   }, 'login-success');
+}
+
+/**
+ * Task completed
+ */
+export async function notifyTaskCompleted(userId: string, taskTitle: string) {
+  await sendUserNotification({
+    userId,
+    title: '🎉 Task Completed!',
+    body: `Great job! You completed "${taskTitle}".`,
+    url: '/dashboard/tasks',
+  }, 'task-completed');
+}
+
+/**
+ * New task assigned
+ */
+export async function notifyNewTask(userId: string, taskTitle: string) {
+  await sendUserNotification({
+    userId,
+    title: '📋 New Task Assigned',
+    body: `You have a new task: "${taskTitle}".`,
+    url: '/dashboard/tasks',
+  }, 'new-task');
+}
+
+/**
+ * Achievement unlocked
+ */
+export async function notifyAchievementUnlocked(userId: string, achievementName: string, badgeType?: string) {
+  const emoji = badgeType === 'Diamond' ? '💎' : badgeType === 'Gold' ? '🥇' : badgeType === 'Silver' ? '🥈' : '🥉';
+  await sendUserNotification({
+    userId,
+    title: `${emoji} Achievement Unlocked!`,
+    body: `Congratulations! You earned "${achievementName}".`,
+    url: '/dashboard/profile',
+  }, 'achievement-unlocked');
+}
+
+/**
+ * Premium subscription activated
+ */
+export async function notifyPremiumActivated(userId: string) {
+  await sendUserNotification({
+    userId,
+    title: '💎 Premium Activated!',
+    body: 'Welcome to Premium! You now have access to all exclusive features.',
+    url: '/dashboard',
+  }, 'premium-activated');
+}
+
+/**
+ * NFT badge minted on Hedera
+ */
+export async function notifyNFTMinted(userId: string, badgeName: string, badgeTier: string) {
+  const emoji = badgeTier === 'Diamond' ? '💎' : badgeTier === 'Gold' ? '🥇' : badgeTier === 'Silver' ? '🥈' : '🥉';
+  await sendUserNotification({
+    userId,
+    title: `${emoji} NFT Badge Minted!`,
+    body: `Your "${badgeName}" achievement has been minted as an NFT on Hedera blockchain!`,
+    url: '/dashboard/profile',
+  }, 'nft-minted');
 }

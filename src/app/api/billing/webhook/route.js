@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { connectToDatabase } from '@/lib/mongodb';
-import { notifyPremiumUpgrade } from '@/lib/notification-helper';
+import { notifyPremiumActivated } from '@/lib/notification-helper';
 
 
 export const dynamic = 'force-dynamic';
@@ -42,8 +42,8 @@ export async function POST(req) {
           
           // Send push notification
           if (updatedUser?.id) {
-            await notifyPremiumUpgrade(updatedUser.id).catch(err =>
-              console.error('Failed to send premium upgrade notification:', err)
+            await notifyPremiumActivated(updatedUser.id).catch(err =>
+              console.error('Failed to send premium notification:', err)
             );
           }
         }
@@ -63,8 +63,8 @@ export async function POST(req) {
         
         // Send push notification only when becoming premium
         if (active && updatedUser?.id) {
-          await notifyPremiumUpgrade(updatedUser.id).catch(err =>
-            console.error('Failed to send premium upgrade notification:', err)
+          await notifyPremiumActivated(updatedUser.id).catch(err =>
+            console.error('Failed to send premium notification:', err)
           );
         }
         break;

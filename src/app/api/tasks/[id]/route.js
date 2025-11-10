@@ -3,6 +3,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { rateLimit } from '@/lib/rateLimiter';
 import { TaskUpdateSchema, TaskIdParamSchema } from '@/features/tasks/schemas';
 import { connectToDatabase } from '@/lib/mongodb';
+import { notifyTaskCompleted } from '@/lib/notification-helper';
 
 export async function GET(req, { params }) {
   try {
@@ -59,13 +60,22 @@ export async function PATCH(req, { params }) {
       }
     }
     if (v.dueAt !== undefined) update.dueAt = v.dueAt ? new Date(v.dueAt) : null;
-
     console.log('Update object:', update);
     
     // Use userId (string) for better-auth compatibility
     const task = await Task.findOneAndUpdate({ _id: id, userId: user._id }, update, { new: true });
     console.log('Task after update:', task);
     if (!task) return new Response(JSON.stringify({ message: 'Not found' }), { status: 404 });
+    
+    // Send notification if task was just completed
+    if (update.status === 'completed' || update.completed === true) {
+      try {
+        await notifyTaskCompleted(user._id.toString(), task.title);
+      } catch (notifError) {
+        console.error('Failed to send task completion notification:', notifError);
+      }
+    }
+    
     return new Response(JSON.stringify({ task }), { status: 200 });
   } catch (err) {
     if (err.message === 'NO_TOKEN' || err.message === 'INVALID_TOKEN') return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });

@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/generate-firebase-sw.js",
     "dev": "next dev --turbopack",
+    "prebuild": "node scripts/generate-firebase-sw.js",
     "build": "cross-env NODE_OPTIONS=--no-deprecation next build --turbopack",
     "start": "next start",
     "lint": "biome check",
-    "format": "biome format --write"
+    "format": "biome format --write",
+    "generate-firebase-sw": "node scripts/generate-firebase-sw.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

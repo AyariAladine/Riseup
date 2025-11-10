@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ConditionalHeader from '@/components/ConditionalHeader';
 import ConditionalFooter from '@/components/ConditionalFooter';
@@ -8,16 +7,6 @@ import SWRProvider from '@/components/SWRProvider';
 import FirebasePushSubscriber from '@/components/FirebasePushSubscriber';
 import ParticleBackground from '@/components/ParticleBackground';
 import PageTransition from '@/components/PageTransition';
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "RiseUP",
@@ -73,9 +62,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="192x192" href="/192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/512.png" />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <ParticleBackground />
         <SWRProvider>
           <ClientProviders />

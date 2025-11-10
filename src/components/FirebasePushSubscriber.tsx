@@ -44,8 +44,12 @@ export default function FirebasePushSubscriber() {
 
           console.log('✅ Firebase notifications enabled');
         }
-      } catch (error) {
-        console.error('❌ Error setting up notifications:', error);
+      } catch (error: any) {
+        // Only log error if it's not about missing Firebase config (expected in dev)
+        if (!error?.message?.includes('Firebase configuration') && 
+            !error?.message?.includes('API key not valid')) {
+          console.error('❌ Error setting up notifications:', error);
+        }
       }
     };
 

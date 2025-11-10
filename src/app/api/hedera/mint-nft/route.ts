@@ -2,6 +2,7 @@ import 'server-only';
 import { NextRequest } from 'next/server';
 import { getUserFromRequest } from '@/lib/auth';
 import { getHederaClient, closeHederaClient } from '@/lib/hederaClient';
+import { notifyNFTMinted } from '@/lib/notification-helper';
 import {
   TokenCreateTransaction,
   TokenType,
@@ -128,6 +129,15 @@ export async function POST(req: NextRequest) {
     
     // Badge name uses task title with " - Completion" suffix
     const badgeName = `${taskTitle} - Completion`;
+
+    // Send push notification for NFT minting
+    try {
+      await notifyNFTMinted(userId, badgeName, badgeTier || 'Bronze');
+      console.log(`[Hedera NFT] Push notification sent to user ${userId}`);
+    } catch (notifError) {
+      console.error('[Hedera NFT] Failed to send push notification:', notifError);
+      // Don't fail the whole request if notification fails
+    }
 
     return new Response(
       JSON.stringify({
