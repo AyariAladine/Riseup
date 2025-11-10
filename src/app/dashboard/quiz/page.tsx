@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { FaSpinner, FaCheckCircle, FaTimesCircle, FaBrain } from 'react-icons/fa';
 
@@ -17,7 +17,7 @@ type Quiz = {
   questions: QuizQuestion[];
 };
 
-export default function QuizPage() {
+function QuizContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -444,5 +444,24 @@ export default function QuizPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrap with Suspense boundary for useSearchParams
+export default function QuizPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+      }}>
+        <FaSpinner className="animate-spin" size={48} color="white" />
+      </div>
+    }>
+      <QuizContent />
+    </Suspense>
   );
 }
