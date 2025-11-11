@@ -78,7 +78,7 @@ async function networkFirst(request) {
     // Essayer le réseau en premier avec timeout
     const fetchPromise = fetch(request);
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Network timeout')), 5000)
+      setTimeout(() => reject(new Error('Network timeout')), 30000)
     );
     
     const response = await Promise.race([fetchPromise, timeoutPromise]);
@@ -181,6 +181,21 @@ self.addEventListener('fetch', (event) => {
 
   // BYPASS: Never intercept or cache any /api/auth/* requests except session
   if (url.pathname.startsWith('/api/auth/') && url.pathname !== SESSION_API) {
+    return;
+  }
+
+  // BYPASS: Never intercept assistant/analyze - it needs long timeout and no caching
+  if (url.pathname.includes('/api/assistant/analyze')) {
+    return;
+  }
+
+  // BYPASS: Never intercept task grading endpoints - critical operations
+  if (url.pathname.includes('/api/tasks/') && url.pathname.includes('/grade')) {
+    return;
+  }
+
+  // BYPASS: Never intercept Hedera NFT minting - blockchain operations take time
+  if (url.pathname.includes('/api/hedera/')) {
     return;
   }
 

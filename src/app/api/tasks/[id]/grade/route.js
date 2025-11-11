@@ -63,6 +63,28 @@ export async function POST(req, { params }) {
       );
     }
 
+    // Check if task is already graded - prevent duplicate grading
+    if (task.status === 'completed' && task.gradedAt) {
+      console.log(`[Grade] Task ${id} already graded at ${task.gradedAt}. Skipping duplicate grading.`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          task: {
+            _id: task._id,
+            title: task.title,
+            score: task.score,
+            status: task.status,
+            completed: task.completed,
+            gradedAt: task.gradedAt,
+            nftMinted: task.nftMinted
+          },
+          message: 'Task already graded.',
+          alreadyGraded: true
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Add timestamps to conversation messages
     const timestampedConversation = conversation.map(msg => ({
       ...msg,

@@ -297,6 +297,15 @@ ${req.__fileTextSample || ''}
       const task = JSON.parse(taskContext);
       const taskId = task._id;
       
+      // Check if task is already completed
+      if (task.status === 'completed' && task.gradedAt) {
+        console.log(`[Assistant] Task ${taskId} already completed. Skipping duplicate grading.`);
+        out.taskCompleted = true;
+        out.message = '✅ Task already completed!';
+        out.alreadyCompleted = true;
+        return NextResponse.json(out);
+      }
+      
       console.log(`[Assistant] Task ${taskId} scored ${score} (≥70). Attempting to complete...`);
       
       // Build comprehensive conversation from the grading session
@@ -346,8 +355,16 @@ ${req.__fileTextSample || ''}
         if (gradeResponse.ok) {
           const gradeData = await gradeResponse.json();
           console.log(`[Assistant] ✅ Task completed successfully!`, gradeData);
-          out.taskCompleted = true;
-          out.message = '🎉 Task completed! NFT badge is being minted...';
+          
+          // Check if it was already graded
+          if (gradeData.alreadyGraded) {
+            out.taskCompleted = true;
+            out.message = '✅ Task already completed!';
+            out.alreadyCompleted = true;
+          } else {
+            out.taskCompleted = true;
+            out.message = '🎉 Task completed! NFT badge is being minted...';
+          }
         } else {
           const errorText = await gradeResponse.text();
           console.error('[Assistant] ❌ Failed to complete task:', gradeResponse.status, errorText);

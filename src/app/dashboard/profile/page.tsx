@@ -170,26 +170,76 @@ export default function DashboardProfile() {
       return;
     }
     
-    // Use face verification instead of old password for premium users
-    await verifyWithFace(async () => {
+    // Premium users: Use face verification instead of old password
+    if (isPremium) {
+      await verifyWithFace(async () => {
+        setSaving(true);
+        setMessage('');
+        try {
+          const response = await fetch('/api/auth/set-password-with-face', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ 
+              newPassword: password,
+              isPremium: true
+            }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to update password');
+          }
+          
+          setMessage('✅ Password updated successfully with face verification!');
+          setPassword('');
+          setCurrentPassword('');
+          
+          // Send Firebase push notification for password change
+          try {
+            await fetch('/api/notifications/password-changed', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+            });
+          } catch (notifErr) {
+            console.error('Failed to send password changed notification:', notifErr);
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          setMessage(`❌ ${msg}`);
+        } finally {
+          setSaving(false);
+        }
+      });
+    } else {
+      // Non-premium users: Require old password
+      if (!currentPassword) {
+        setMessage('Please enter your current password');
+        return;
+      }
+      
       setSaving(true);
       setMessage('');
       try {
-        // Call custom API to set password with face verification (no old password needed)
         const response = await fetch('/api/auth/set-password-with-face', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ newPassword: password }),
+          body: JSON.stringify({ 
+            newPassword: password,
+            oldPassword: currentPassword,
+            isPremium: false
+          }),
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to set password');
+          throw new Error(data.error || 'Failed to update password');
         }
         
-        setMessage('✅ Password set successfully!');
+        setMessage('✅ Password updated successfully!');
         setPassword('');
         setCurrentPassword('');
         
@@ -208,7 +258,7 @@ export default function DashboardProfile() {
       } finally {
         setSaving(false);
       }
-    });
+    }
   }
 
   async function enable2FA() {
@@ -758,6 +808,21 @@ export default function DashboardProfile() {
               <input type="password" value={password} placeholder="Enter new password" onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }} />
             </label>
 
+            {password && !isPremium && (
+              <label style={{ display: 'block', marginBottom: 10 }}>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>
+                  Current password (required)
+                </div>
+                <input 
+                  type="password" 
+                  value={currentPassword} 
+                  placeholder="Enter your current password" 
+                  onChange={(e) => setCurrentPassword(e.target.value)} 
+                  style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }} 
+                />
+              </label>
+            )}
+
             {password && isPremium && (
               <div style={{ 
                 padding: '10px 12px', 
@@ -779,7 +844,8 @@ export default function DashboardProfile() {
 
             <button className="github-btn github-btn-primary" type="submit" disabled={saving}>
               {saving ? 'Saving…' : 
-               password ? 'Set Password with Face Verification' :
+               password && isPremium ? 'Set Password with Face Verification' :
+               password && !isPremium ? 'Update Password' :
                'Save changes'}
             </button>
           </form>
