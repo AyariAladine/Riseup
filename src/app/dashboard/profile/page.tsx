@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import useSWR from 'swr';
 import { useProfile, useReclamations } from '@/lib/useProfile';
 import { changePassword, twoFactor, useSession } from '@/lib/auth-client';
 import FaceAuthSection from '@/components/FaceAuthSection';
 import { useFaceVerification } from '@/hooks/useFaceVerification';
 import FaceVerificationModal from '@/components/FaceVerificationModal';
+import { Trophy, Target, Clock, TrendingUp, Award, Code, Zap, BarChart3 } from 'lucide-react';
 
 type Theme = 'system' | 'light' | 'dark';
 
@@ -69,6 +71,14 @@ export default function DashboardProfile() {
   // NFT Badges state
   const [nftBadges, setNftBadges] = useState<any[]>([]);
   const [loadingBadges, setLoadingBadges] = useState(true);
+
+  // User Stats
+  const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((res) => res.json());
+  const { data: userStatsData, isLoading: statsLoading, error: statsError } = useSWR(
+    '/api/stats/user',
+    fetcher
+  );
+  const userStats = userStatsData?.stats;
 
   const PROGRAMMING_LANGUAGES = ["JavaScript", "Python", "Java", "C++", "C#", "Ruby", "Go", "Rust", "Swift", "Kotlin", "TypeScript", "PHP", "Dart", "Scala", "R"];
 
@@ -600,7 +610,7 @@ export default function DashboardProfile() {
     setLPMessage('');
     try {
       const res = await fetch('/api/onboarding', {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(lpFields),
@@ -1284,11 +1294,11 @@ export default function DashboardProfile() {
                     <div className="small muted">Skill Level (Read-only)</div>
                     <div style={{ fontWeight: 500 }}>{learningProfile.skillLevel}/10</div>
                   </div>
-                  {learningProfile.preferredLanguages && learningProfile.preferredLanguages.length > 0 && (
+                  {learningProfile.languagesToLearn && learningProfile.languagesToLearn.length > 0 && (
                     <div>
                       <div className="small muted">Preferred Languages</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
-                        {learningProfile.preferredLanguages.map((lang: string) => (
+                        {learningProfile.languagesToLearn.map((lang: string) => (
                           <span key={lang} style={{ 
                             padding: '2px 8px', 
                             background: 'rgba(59, 130, 246, 0.1)', 
@@ -1344,21 +1354,76 @@ export default function DashboardProfile() {
                   {/* Preferred Languages - Editable */}
                   <div>
                     <label className="github-label">Preferred Languages</label>
-                    <select 
-                      className="github-input" 
-                      multiple
-                      value={lpFields?.preferredLanguages || []}
-                      onChange={(e) => {
-                        const selected = Array.from(e.target.selectedOptions, option => option.value);
-                        setLPFields({ ...lpFields, preferredLanguages: selected });
-                      }}
-                      style={{ minHeight: '100px' }}
-                    >
-                      {PROGRAMMING_LANGUAGES.map(lang => (
-                        <option key={lang} value={lang}>{lang}</option>
-                      ))}
-                    </select>
-                    <div className="small muted" style={{ marginTop: '4px' }}>Hold Ctrl/Cmd to select multiple</div>
+                    <div style={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap', 
+                      gap: '8px', 
+                      marginTop: '8px',
+                      padding: '12px',
+                      background: 'var(--panel-2)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      minHeight: '100px',
+                      maxHeight: '200px',
+                      overflowY: 'auto'
+                    }}>
+                      {PROGRAMMING_LANGUAGES.map(lang => {
+                        const isSelected = (lpFields?.languagesToLearn || []).includes(lang);
+                        return (
+                          <button
+                            key={lang}
+                            type="button"
+                            onClick={() => {
+                              const current = lpFields?.languagesToLearn || [];
+                              const updated = isSelected
+                                ? current.filter((l: string) => l !== lang)
+                                : [...current, lang];
+                              setLPFields({ ...lpFields, languagesToLearn: updated });
+                            }}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '13px',
+                              borderRadius: '6px',
+                              border: `1px solid ${isSelected ? '#3b82f6' : 'var(--border)'}`,
+                              background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'var(--panel-1)',
+                              color: isSelected ? '#3b82f6' : 'var(--fg)',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              fontWeight: isSelected ? 600 : 400,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) {
+                                e.currentTarget.style.background = 'var(--panel-2)';
+                                e.currentTarget.style.borderColor = '#3b82f6';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelected) {
+                                e.currentTarget.style.background = 'var(--panel-1)';
+                                e.currentTarget.style.borderColor = 'var(--border)';
+                              }
+                            }}
+                          >
+                            {isSelected ? (
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="#3b82f6">
+                                <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/>
+                              </svg>
+                            ) : (
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="var(--muted)" style={{ opacity: 0.5 }}>
+                                <path d="M8 0a8 8 0 100 16A8 8 0 008 0zM1.5 8a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0z"/>
+                              </svg>
+                            )}
+                            {lang}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="small muted" style={{ marginTop: '8px' }}>
+                      Click to select/deselect languages • Selected: {(lpFields?.languagesToLearn || []).length}
+                    </div>
                   </div>
 
                   {/* Hours Per Week - Editable */}
@@ -1546,6 +1611,194 @@ export default function DashboardProfile() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+
+          {/* User Statistics Section */}
+          <div className="github-card" style={{ padding: '20px', marginTop: '16px' }}>
+            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <BarChart3 size={20} style={{ color: 'var(--accent)' }} />
+              <span style={{ fontSize: '16px', fontWeight: 600 }}>Your Statistics</span>
+            </div>
+
+            {statsLoading ? (
+              <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '40px 0' }}>
+                <div style={{ fontSize: '14px' }}>Loading statistics...</div>
+              </div>
+            ) : statsError ? (
+              <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '20px 0' }}>
+                <div style={{ fontSize: '14px', color: '#ef4444' }}>Failed to load statistics</div>
+              </div>
+            ) : userStats ? (
+              <>
+                {/* Stats Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                  {/* Total Badges */}
+                  <div style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(147, 51, 234, 0.05))',
+                    border: '1px solid rgba(147, 51, 234, 0.2)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <Trophy size={20} style={{ color: '#9333ea' }} />
+                      <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#9333ea' }}>{userStats.totalBadges || 0}</span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 500 }}>Total Badges</div>
+                    <div style={{ marginTop: '8px', display: 'flex', gap: '4px', flexWrap: 'wrap', fontSize: '11px' }}>
+                      {(userStats.badgeBreakdown?.diamond || 0) > 0 && <span style={{ color: '#9333ea' }}>💎 {userStats.badgeBreakdown.diamond}</span>}
+                      {(userStats.badgeBreakdown?.gold || 0) > 0 && <span style={{ color: '#f59e0b' }}>🥇 {userStats.badgeBreakdown.gold}</span>}
+                      {(userStats.badgeBreakdown?.silver || 0) > 0 && <span style={{ color: '#6b7280' }}>🥈 {userStats.badgeBreakdown.silver}</span>}
+                      {(userStats.badgeBreakdown?.bronze || 0) > 0 && <span style={{ color: '#cd7f32' }}>🥉 {userStats.badgeBreakdown.bronze}</span>}
+                    </div>
+                  </div>
+
+                  {/* Skill Level */}
+                  <div style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))',
+                    border: '1px solid rgba(59, 130, 246, 0.2)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <Zap size={20} style={{ color: '#3b82f6' }} />
+                      <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#3b82f6' }}>{userStats.skillLevel || 1}/10</span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 500 }}>Skill Level</div>
+                    <div style={{ marginTop: '8px', height: '4px', background: 'var(--panel-2)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${((userStats.skillLevel || 1) / 10) * 100}%`,
+                        background: 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                        transition: 'width 0.5s ease'
+                      }} />
+                    </div>
+                  </div>
+
+                  {/* Average Score */}
+                  <div style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05))',
+                    border: '1px solid rgba(16, 185, 129, 0.2)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <Target size={20} style={{ color: '#10b981' }} />
+                      <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>{userStats.avgScore || 0}%</span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 500 }}>Average Score</div>
+                    <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--muted)' }}>Best: {userStats.bestScore || 0}%</div>
+                  </div>
+
+                  {/* Completion Rate */}
+                  <div style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05))',
+                    border: '1px solid rgba(245, 158, 11, 0.2)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <TrendingUp size={20} style={{ color: '#f59e0b' }} />
+                      <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b' }}>{userStats.completionRate || 0}%</span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 500 }}>Completion Rate</div>
+                    <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--muted)' }}>{userStats.completedTasks || 0}/{userStats.totalTasks || 0} tasks</div>
+                  </div>
+                </div>
+
+                {/* Detailed Stats */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+                  {/* Languages */}
+                  <div style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    background: 'var(--panel-2)',
+                    border: '1px solid var(--border)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                      <Code size={18} style={{ color: '#6366f1' }} />
+                      <div>
+                        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#6366f1' }}>{userStats.languages || 0}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Languages</div>
+                      </div>
+                    </div>
+                    {(userStats.languageStats?.length || 0) > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {(userStats.languageStats || []).slice(0, 3).map((lang: any, idx: number) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                            <span style={{ color: 'var(--fg)' }}>{lang.language}</span>
+                            <span style={{ color: '#6366f1', fontWeight: 500 }}>{lang.badges} badges</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Activity */}
+                  <div style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    background: 'var(--panel-2)',
+                    border: '1px solid var(--border)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                      <Clock size={18} style={{ color: '#ec4899' }} />
+                      <div>
+                        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#ec4899' }}>{userStats.totalTimeSpent || 0}h</div>
+                        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Time Spent</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--muted)' }}>Active Days:</span>
+                        <span style={{ color: '#ec4899', fontWeight: 500 }}>{userStats.uniqueDays || 0}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--muted)' }}>Quizzes:</span>
+                        <span style={{ color: '#ec4899', fontWeight: 500 }}>{userStats.totalQuizzes || 0}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--muted)' }}>Attempts:</span>
+                        <span style={{ color: '#ec4899', fontWeight: 500 }}>{userStats.totalAttempts || 0}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Recent Activity */}
+                  <div style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    background: 'var(--panel-2)',
+                    border: '1px solid var(--border)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                      <Award size={18} style={{ color: '#06b6d4' }} />
+                      <div>
+                        <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#06b6d4' }}>Last 7 Days</div>
+                        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Recent Activity</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--muted)' }}>Tasks:</span>
+                        <span style={{ color: '#06b6d4', fontWeight: 500 }}>{userStats.recentActivity?.tasks || 0}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--muted)' }}>Achievements:</span>
+                        <span style={{ color: '#06b6d4', fontWeight: 500 }}>{userStats.recentActivity?.achievements || 0}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--muted)' }}>Rank:</span>
+                        <span style={{ color: '#06b6d4', fontWeight: 500 }}>#{userStats.approximateRank || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '20px 0' }}>
+                <div style={{ fontSize: '14px' }}>Complete tasks and quizzes to see your statistics!</div>
               </div>
             )}
           </div>

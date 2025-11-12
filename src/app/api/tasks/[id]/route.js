@@ -4,6 +4,7 @@ import { rateLimit } from '@/lib/rateLimiter';
 import { TaskUpdateSchema, TaskIdParamSchema } from '@/features/tasks/schemas';
 import { connectToDatabase } from '@/lib/mongodb';
 import { notifyTaskCompleted } from '@/lib/notification-helper';
+import { trackInteraction } from '@/lib/track-interaction';
 
 export async function GET(req, { params }) {
   try {
@@ -66,6 +67,45 @@ export async function PATCH(req, { params }) {
     const task = await Task.findOneAndUpdate({ _id: id, userId: user._id }, update, { new: true });
     console.log('Task after update:', task);
     if (!task) return new Response(JSON.stringify({ message: 'Not found' }), { status: 404 });
+    
+    // Track interaction for LightFM learning when status changes
+    try {
+      if (update.status === 'in_progress') {
+        // Track that user started the task
+        await trackInteraction({
+          userId: user._id,
+          taskId: task._id.toString(),
+          taskTitle: task.title,
+          taskDifficulty: task.difficulty || 'medium',
+          taskCategory: task.category || 'general',
+          taskSkills: task.skills || [],
+          started: true,
+          viewed: true,
+          completed: false
+        });
+      } else if (update.status === 'completed' || update.completed === true) {
+        // Track task completion (without score, as it might be completed manually)
+        const timeSpent = task.completedAt && task.startedAt 
+          ? Math.round((task.completedAt - task.startedAt) / (1000 * 60))
+          : task.estimatedTime || 30;
+        
+        await trackInteraction({
+          userId: user._id,
+          taskId: task._id.toString(),
+          taskTitle: task.title,
+          taskDifficulty: task.difficulty || 'medium',
+          taskCategory: task.category || 'general',
+          taskSkills: task.skills || [],
+          completed: true,
+          score: task.score || null,
+          timeSpent: timeSpent,
+          started: true,
+          viewed: true
+        });
+      }
+    } catch (trackErr) {
+      console.warn('[Task Update] Interaction tracking error:', trackErr);
+    }
     
     // Send notification if task was just completed
     if (update.status === 'completed' || update.completed === true) {

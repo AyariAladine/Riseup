@@ -2,6 +2,9 @@ import { getUserFromRequest } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import Task from '@/models/Task';
 import Achievement from '@/models/Achievement';
+import { trackInteraction } from '@/lib/track-interaction';
+import { updateSkillLevel, detectLanguageFromTask } from '@/lib/update-skill-level';
+import { determineBadgeLevel } from '@/lib/achievement-utils';
 import mongoose from 'mongoose';
 
 /**
@@ -108,6 +111,80 @@ export async function POST(req, { params }) {
 
     console.log(`[Grade] Task ${id} graded with score ${score} by user ${user.id}`);
 
+    // Update skill level based on score
+    let skillLevelUpdate = null;
+    try {
+      skillLevelUpdate = await updateSkillLevel(user._id, score);
+      console.log(`[Grade] Skill level updated:`, skillLevelUpdate);
+    } catch (skillError) {
+      console.error('[Grade] Failed to update skill level:', skillError);
+      // Don't fail the whole request if skill level update fails
+    }
+
+    // Unlock achievement if score >= 70
+    let achievementUnlocked = null;
+    if (score >= 70) {
+      try {
+        const badge = determineBadgeLevel(score);
+        if (badge) {
+          const language = detectLanguageFromTask(task);
+          
+          const unlockRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/achievements/unlock`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Cookie': req.headers.get('cookie') || ''
+            },
+            body: JSON.stringify({
+              language,
+              score: score,
+              challengeTitle: task.title,
+              testId: task._id.toString()
+            })
+          });
+
+          if (unlockRes.ok) {
+            const unlockData = await unlockRes.json();
+            if (unlockData.success) {
+              achievementUnlocked = {
+                badge,
+                language,
+                rarity: unlockData.achievement?.rarity,
+                message: unlockData.message
+              };
+              console.log(`[Grade] Achievement unlocked:`, achievementUnlocked);
+            }
+          }
+        }
+      } catch (achievementError) {
+        console.error('[Grade] Failed to unlock achievement:', achievementError);
+        // Don't fail the whole request if achievement unlock fails
+      }
+    }
+
+    // Track interaction for LightFM learning
+    try {
+      const timeSpent = task.completedAt && task.startedAt 
+        ? Math.round((task.completedAt - task.startedAt) / (1000 * 60)) // minutes
+        : task.estimatedTime || 30;
+      
+      await trackInteraction({
+        userId: user._id,
+        taskId: task._id.toString(),
+        taskTitle: task.title,
+        taskDifficulty: task.difficulty || 'medium',
+        taskCategory: task.category || 'general',
+        taskSkills: task.skills || [],
+        completed: true,
+        score: score,
+        timeSpent: timeSpent,
+        started: true,
+        viewed: true
+      });
+    } catch (trackErr) {
+      console.warn('[Grade] Interaction tracking error:', trackErr);
+    }
+
     // Trigger NFT minting asynchronously (don't wait for it)
     mintNFTBadge(task._id.toString(), user.id, score, task.title)
       .then(result => {
@@ -129,6 +206,8 @@ export async function POST(req, { params }) {
           gradedAt: task.gradedAt,
           nftMinted: task.nftMinted
         },
+        skillLevel: skillLevelUpdate,
+        achievement: achievementUnlocked,
         message: 'Task graded successfully! NFT badge will be minted shortly.'
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }

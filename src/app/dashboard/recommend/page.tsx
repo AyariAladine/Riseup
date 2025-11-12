@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
+import { showNotification } from "@/components/NotificationProvider";
 
 type PlanItem = { title: string; minutes: number; details?: string };
 
@@ -31,11 +32,83 @@ export default function RecommendPage() {
 
   async function addToTasks(item: PlanItem) {
     try {
-      await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: item.title }) });
-      await fetch('/api/ai/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'accept_recommendation', payload: { title: item.title } }) });
-      alert('Task added.');
-    } catch {
-      alert('Failed to add task.');
+      // Generate AI content for the task first
+      let aiDescription = '';
+      try {
+        const contentRes = await fetch('/api/ai/generate-task-content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            taskTitle: item.title,
+            taskDifficulty: item.details || 'medium',
+            taskCategory: 'general',
+            taskSkills: [],
+            estimatedTime: item.minutes || 30
+          })
+        });
+
+        if (contentRes.ok) {
+          const contentData = await contentRes.json();
+          if (contentData.description) {
+            aiDescription = contentData.description;
+          }
+        }
+      } catch (contentErr) {
+        console.warn('Failed to generate AI content, using fallback:', contentErr);
+      }
+
+      // Create task with AI-generated description
+      const taskRes = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: item.title,
+          description: aiDescription || `Recommended task: ${item.title} (${item.minutes} minutes)`
+        })
+      });
+
+      if (!taskRes.ok) {
+        throw new Error('Failed to create task');
+      }
+
+      const taskData = await taskRes.json();
+      const createdTask = taskData.task;
+
+      // Track interaction: user accepted this recommendation
+      try {
+        await fetch('/api/ai/update-behavior', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            taskId: createdTask._id || createdTask.id,
+            taskTitle: item.title,
+            taskDifficulty: item.details || 'medium',
+            taskCategory: 'general',
+            taskSkills: [],
+            viewed: true,
+            started: false,
+            completed: false
+          })
+        });
+      } catch (trackErr) {
+        console.warn('Failed to track recommendation acceptance:', trackErr);
+      }
+
+      showNotification(
+        'Task added with AI-generated content!',
+        'success',
+        'Task Added'
+      );
+    } catch (err) {
+      console.error('Failed to add task:', err);
+      showNotification(
+        'Failed to add task. Please try again.',
+        'error',
+        'Error'
+      );
     }
   }
 

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SurveyModal from '@/components/SurveyModal';
 import useSWR from 'swr';
-import { Loader2, Medal, Users } from 'lucide-react';
+import { Loader2, Medal, Users, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 interface User {
   id: string;
@@ -45,6 +45,13 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
   // Leaderboard state
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
 
+  // Weekly Activity state
+  const [weekOffset, setWeekOffset] = useState(0);
+  const { data: weeklyActivity, isLoading: activityLoading } = useSWR(
+    `/api/activity/weekly?weekOffset=${weekOffset}`,
+    fetcher
+  );
+
   // Fetch leaderboard data with language filter
   const { data: leaderboardData, isLoading: leaderboardLoading } = useSWR<{ leaderboard: LeaderboardEntry[] }>(
     selectedLanguage
@@ -69,6 +76,18 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
       console.error('Failed to check onboarding status:', err);
     }
   };
+
+  // Track dashboard visit as activity
+  useEffect(() => {
+    if (user?.id) {
+      // Fire and forget - track dashboard visit
+      fetch('/api/activity/track-visit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      }).catch(() => {}); // Ignore errors
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     // Use initialUser if available to avoid redundant fetch
@@ -368,6 +387,160 @@ export default function DashboardClient({ initialUser }: { initialUser: User | n
             })}
           </div>
         )}
+      </div>
+
+      {/* Weekly Activity Graph */}
+      <div style={{ marginTop: '32px' }}>
+        <div className="github-card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Calendar className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+              <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>Weekly Activity</h2>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={() => setWeekOffset(prev => prev + 1)}
+                className="github-btn"
+                style={{ padding: '6px 12px', fontSize: '14px' }}
+                title="Previous week"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span style={{ fontSize: '14px', color: 'var(--muted)', minWidth: '120px', textAlign: 'center' }}>
+                {weeklyActivity?.weekStart && weeklyActivity?.weekEnd ? (
+                  <>
+                    {new Date(weeklyActivity.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(weeklyActivity.weekEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </>
+                ) : 'Loading...'}
+              </span>
+              <button
+                onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))}
+                disabled={weekOffset === 0}
+                className="github-btn"
+                style={{ 
+                  padding: '6px 12px', 
+                  fontSize: '14px',
+                  opacity: weekOffset === 0 ? 0.5 : 1,
+                  cursor: weekOffset === 0 ? 'not-allowed' : 'pointer'
+                }}
+                title="Next week"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+
+          {activityLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+              <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--accent)' }} />
+            </div>
+          ) : weeklyActivity?.days ? (
+            <>
+              {/* Activity Grid */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(7, 1fr)', 
+                gap: '8px',
+                marginBottom: '16px'
+              }}>
+                {weeklyActivity.days.map((day: any, index: number) => {
+                  const getIntensity = () => {
+                    if (!day.isActive) return 0;
+                    // You can enhance this later to show different intensities
+                    return 4; // Max intensity for now
+                  };
+
+                  const intensity = getIntensity();
+                  const colors = [
+                    'var(--panel-2)', // No activity
+                    '#0e4429', // Level 1
+                    '#006d32', // Level 2
+                    '#26a641', // Level 3
+                    '#39d353'  // Level 4 (max)
+                  ];
+
+                  return (
+                    <div
+                      key={index}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '6px',
+                          background: colors[intensity],
+                          border: day.isToday ? '2px solid var(--accent)' : 'none',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          position: 'relative'
+                        }}
+                        title={`${day.dayName}, ${day.date} - ${day.isActive ? 'Active' : 'No activity'}`}
+                        onMouseEnter={(e) => {
+                          if (day.isActive) {
+                            e.currentTarget.style.transform = 'scale(1.1)';
+                            e.currentTarget.style.boxShadow = '0 0 8px rgba(57, 211, 83, 0.5)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      />
+                      <div style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: day.isToday ? 600 : 400 }}>
+                        {day.dayName}
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--muted)' }}>
+                        {day.dayNumber}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Legend and Summary */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                paddingTop: '12px',
+                borderTop: '1px solid var(--border)',
+                fontSize: '12px',
+                color: 'var(--muted)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span>Less</span>
+                  <div style={{ display: 'flex', gap: '3px' }}>
+                    {[1, 2, 3, 4].map(level => (
+                      <div
+                        key={level}
+                        style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '3px',
+                          background: ['#0e4429', '#006d32', '#26a641', '#39d353'][level - 1]
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span>More</span>
+                </div>
+                <div style={{ fontWeight: 500, color: 'var(--fg)' }}>
+                  {weeklyActivity.totalActiveDays} of 7 days active this week
+                </div>
+              </div>
+            </>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--muted)' }}>
+              <p style={{ fontSize: '14px' }}>No activity data available</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Onboarding Modal - Optional */}

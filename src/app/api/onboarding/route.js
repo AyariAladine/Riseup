@@ -146,6 +146,13 @@ export async function PATCH(request) {
 
     const updates = await request.json();
 
+    // Normalize languagesToLearn to ensure it's an array
+    if (updates.languagesToLearn && !Array.isArray(updates.languagesToLearn)) {
+      updates.languagesToLearn = typeof updates.languagesToLearn === 'string' 
+        ? updates.languagesToLearn.split(',').map(s => s.trim()).filter(Boolean) 
+        : [updates.languagesToLearn];
+    }
+
     const profile = await UserLearningProfile.findOneAndUpdate(
       { userId: user._id },
       { $set: updates },
@@ -163,4 +170,9 @@ export async function PATCH(request) {
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+// PUT handler (alias for PATCH for backwards compatibility)
+export async function PUT(request) {
+  return PATCH(request);
 }

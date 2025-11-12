@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const TaskCreateSchema = z.object({
   title: z.string().trim().min(1, 'title is required').max(200),
-  description: z.string().max(2000).optional(),
+  description: z.string().max(10000).optional(), // Increased from 2000 to 10000 to accommodate AI-generated descriptions with exercises
   dueAt: z.string().datetime().optional().or(z.literal('')).transform(v => (v ? v : undefined)).optional(),
 });
 

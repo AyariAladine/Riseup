@@ -27,6 +27,7 @@ function QuizContent() {
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [score, setScore] = useState(0);
+  const [quizResult, setQuizResult] = useState<{skillLevel?: any, achievement?: any} | null>(null);
 
   useEffect(() => {
     fetchQuiz();
@@ -42,17 +43,78 @@ function QuizContent() {
 
       console.log('Fetching quiz with task:', task);
 
-      const res = await fetch('/api/ai/quiz', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskContext: task })
-      });
+      let res;
+      try {
+        res = await fetch('/api/ai/quiz', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskContext: task })
+        });
+      } catch (fetchError) {
+        // Network error - fetch failed completely (before reaching server)
+        const errorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+        console.error('❌ Network error fetching quiz (client-side):', errorMsg, fetchError);
+        
+        // Check for common network error patterns
+        if (errorMsg.includes('Failed to fetch') || 
+            errorMsg.includes('NetworkError') || 
+            errorMsg.includes('Network request failed') ||
+            errorMsg.includes('ERR_NETWORK') ||
+            errorMsg.includes('network') ||
+            errorMsg.includes('ECONNREFUSED') ||
+            errorMsg.includes('ENOTFOUND')) {
+          throw new Error('Cannot connect to quiz service. Please check your internet connection and ensure the server is running.');
+        }
+        throw new Error(`Failed to connect to quiz service: ${errorMsg}`);
+      }
 
       if (!res.ok) {
-        const data = await res.json();
-        console.error('Quiz API error:', data);
-        throw new Error(data.error || 'Failed to generate quiz');
+        let errorMessage = 'Failed to generate quiz';
+        let errorDetails = '';
+        try {
+          const data = await res.json();
+          console.error('❌ Quiz API error response:', JSON.stringify(data, null, 2));
+          
+          // Use the user-friendly error message
+          errorMessage = data.error || errorMessage;
+          
+          // Add details if available and different from main error
+          if (data.details && data.details !== errorMessage) {
+            errorDetails = data.details;
+          }
+          
+          // Include technical error for debugging (but don't show to user)
+          if (data.technicalError && process.env.NODE_ENV === 'development') {
+            console.log('Technical error:', data.technicalError);
+          }
+          
+          // Add fallback info if available
+          if (data.fallback) {
+            if (errorDetails) {
+              errorDetails += `\n\n${data.fallback}`;
+            } else {
+              errorDetails = data.fallback;
+            }
+          }
+          
+          // Combine error message and details
+          if (errorDetails) {
+            errorMessage = `${errorMessage}\n\n${errorDetails}`;
+          }
+        } catch (parseErr) {
+          // Response is not JSON, try to get text
+          try {
+            const errorText = await res.text();
+            console.error('❌ Quiz API error (text response):', errorText);
+            errorMessage = errorText || `HTTP ${res.status}: ${res.statusText || 'Unknown error'}`;
+          } catch (textErr) {
+            const textErrMsg = textErr instanceof Error ? textErr.message : String(textErr);
+            console.error('❌ Failed to read error response:', textErrMsg);
+            errorMessage = `HTTP ${res.status}: ${res.statusText || 'Unknown error'}`;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await res.json();
@@ -60,14 +122,19 @@ function QuizContent() {
       
       if (!data.quiz) {
         console.error('No quiz in response:', data);
-        throw new Error('Invalid quiz data received');
+        throw new Error('Invalid quiz data received from server');
       }
       
       setQuiz(data.quiz);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      console.error('fetchQuiz error:', e);
-      setError(msg || 'Failed to load quiz');
+      const errorDetails = e instanceof Error ? {
+        message: e.message,
+        name: e.name,
+        stack: e.stack
+      } : { error: String(e) };
+      console.error('❌ fetchQuiz error:', msg, errorDetails);
+      setError(msg || 'Failed to load quiz. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -106,7 +173,7 @@ function QuizContent() {
 
   async function submitQuizResults(correctCount: number) {
     try {
-      await fetch('/api/ai/quiz/result', {
+      const res = await fetch('/api/ai/quiz/result', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -114,9 +181,20 @@ function QuizContent() {
           quizId: quiz?.title,
           score: correctCount,
           totalQuestions: quiz?.questions.length,
-          answers: selectedAnswers
+          answers: selectedAnswers,
+          taskContext: searchParams?.get('task') ? decodeURIComponent(searchParams.get('task') || '') : null
         })
       });
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Quiz results processed:', data);
+        // Store results for display
+        setQuizResult({
+          skillLevel: data.skillLevel,
+          achievement: data.achievement
+        });
+      }
     } catch (e) {
       console.error('Failed to submit quiz results:', e);
     }
@@ -144,27 +222,64 @@ function QuizContent() {
         maxWidth: '600px',
         margin: '48px auto',
         padding: '32px',
-        background: '#fee',
+        background: 'linear-gradient(135deg, #fee 0%, #fdd 100%)',
         borderRadius: '12px',
-        border: '2px solid #fcc'
+        border: '2px solid #fcc',
+        boxShadow: '0 4px 16px rgba(255,0,0,0.1)'
       }}>
-        <h2 style={{ color: '#c00', marginBottom: '16px' }}>Error</h2>
-        <p style={{ color: '#800' }}>{error}</p>
-        <button 
-          onClick={() => router.back()}
-          style={{
-            marginTop: '16px',
-            padding: '10px 20px',
-            background: '#ec4899',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: 600
-          }}
-        >
-          Go Back
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <span style={{ fontSize: '32px' }}>⚠️</span>
+          <h2 style={{ color: '#c00', margin: 0, fontSize: '24px' }}>Quiz Error</h2>
+        </div>
+        <div style={{
+          background: 'white',
+          padding: '16px',
+          borderRadius: '8px',
+          marginBottom: '16px',
+          border: '1px solid #fcc'
+        }}>
+          <p style={{ color: '#800', margin: 0, fontSize: '15px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+            {error}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            onClick={() => {
+              setError('');
+              setLoading(true);
+              fetchQuiz();
+            }}
+            style={{
+              flex: 1,
+              padding: '12px 20px',
+              background: 'linear-gradient(90deg, #ec4899 0%, #f472b6 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: '14px'
+            }}
+          >
+            🔄 Try Again
+          </button>
+          <button 
+            onClick={() => router.back()}
+            style={{
+              flex: 1,
+              padding: '12px 20px',
+              background: '#6366f1',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: '14px'
+            }}
+          >
+            ← Go Back
+          </button>
+        </div>
       </div>
     );
   }
@@ -220,6 +335,63 @@ function QuizContent() {
             {percentage}%
           </div>
         </div>
+
+        {/* Skill Level & Achievement Updates */}
+        {(quizResult?.skillLevel || quizResult?.achievement) && (
+          <div style={{ padding: '24px 32px', background: 'white', borderBottom: '1px solid #e2e8f0' }}>
+            {quizResult.skillLevel && (
+              <div style={{
+                padding: '16px',
+                background: quizResult.skillLevel.change > 0 
+                  ? 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)'
+                  : quizResult.skillLevel.change < 0
+                  ? 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)'
+                  : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                borderRadius: '12px',
+                marginBottom: quizResult.achievement ? '16px' : 0,
+                border: `2px solid ${quizResult.skillLevel.change > 0 ? '#3b82f6' : quizResult.skillLevel.change < 0 ? '#ef4444' : '#9ca3af'}`
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '32px' }}>
+                    {quizResult.skillLevel.change > 0 ? '⬆️' : quizResult.skillLevel.change < 0 ? '⬇️' : '➡️'}
+                  </span>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#334155' }}>
+                      Skill Level: {quizResult.skillLevel.old} → {quizResult.skillLevel.new}
+                    </h3>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#64748b' }}>
+                      {quizResult.skillLevel.message}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {quizResult.achievement && (
+              <div style={{
+                padding: '16px',
+                background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                borderRadius: '12px',
+                border: '2px solid #fbbf24'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '32px' }}>🏆</span>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#334155' }}>
+                      Achievement Unlocked!
+                    </h3>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#64748b' }}>
+                      {quizResult.achievement.badge} {quizResult.achievement.language} Badge ({quizResult.achievement.rarity})
+                    </p>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#92400e', fontStyle: 'italic' }}>
+                      {quizResult.achievement.message}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Results Details */}
         <div style={{ padding: '32px', background: 'white' }}>

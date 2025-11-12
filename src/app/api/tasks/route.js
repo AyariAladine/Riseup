@@ -66,29 +66,74 @@ export async function POST(req) {
     const json = await req.json();
     const parsed = TaskCreateSchema.safeParse(json);
     if (!parsed.success) {
-      return new Response(JSON.stringify({ message: 'Validation error', errors: parsed.error.flatten() }), { status: 400 });
+      // Safely extract error details from Zod error
+      // Zod errors have an 'issues' property, not 'errors'
+      const errorDetails = parsed.error?.issues 
+        ? parsed.error.issues.map((e) => {
+            const path = Array.isArray(e.path) ? e.path.join('.') : String(e.path || 'unknown');
+            return `${path}: ${e.message || 'Invalid value'}`;
+          }).join(', ')
+        : parsed.error?.message || 'Invalid task data';
+      
+      return new Response(JSON.stringify({ 
+        message: 'Validation error', 
+        error: 'Invalid task data',
+        errors: parsed.error?.flatten ? parsed.error.flatten() : { formErrors: [], fieldErrors: {} },
+        details: errorDetails
+      }), { 
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
     const { title, description, dueAt } = parsed.data;
+    
+    // Validate title is not empty
+    if (!title || title.trim().length === 0) {
+      return new Response(JSON.stringify({ 
+        message: 'Validation error', 
+        error: 'Task title is required',
+        details: 'Title cannot be empty'
+      }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+    
     // Create task with both user (ObjectId) and userId (string) for compatibility
     const task = await Task.create({ 
       user: user._id, 
       userId: user._id.toString(),
-      title,
+      title: title.trim(),
       description: description || '',
       dueAt: dueAt ? new Date(dueAt) : undefined 
     });
+    
     // Notify user about new task
     try {
       await notifyNewTask(user._id.toString(), title);
     } catch (notifError) {
       console.error('Failed to send task notification:', notifError);
     }
-    return new Response(JSON.stringify({ task }), { status: 201 });
+    
+    return new Response(JSON.stringify({ task }), { 
+      status: 201,
+      headers: { 'Content-Type': 'application/json' }
+    });
   } catch (err) {
     if (err.message === 'NO_TOKEN' || err.message === 'INVALID_TOKEN') {
-      return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
+      return new Response(JSON.stringify({ 
+        message: 'Unauthorized',
+        error: 'Authentication required'
+      }), { 
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
-    console.error(err);
-    return new Response(JSON.stringify({ message: 'Server error' }), { status: 500 });
+    console.error('❌ Task creation error:', err);
+    return new Response(JSON.stringify({ 
+      message: 'Server error',
+      error: err.message || 'Failed to create task',
+      details: err.stack || 'Unknown error occurred'
+    }), { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import useSWR from 'swr';
-import { Loader2, Medal, Users } from 'lucide-react';
+import { Loader2, Medal, Users, Trophy, Target, Clock, TrendingUp, Award, Code, Zap, BarChart3 } from 'lucide-react';
 
 interface LeaderboardEntry {
   _id: string;
@@ -29,7 +29,43 @@ interface LeaderboardData {
   count: number;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+interface UserStats {
+  success: boolean;
+  stats: {
+    totalBadges: number;
+    totalTasks: number;
+    completedTasks: number;
+    completionRate: number;
+    avgScore: number;
+    bestScore: number;
+    skillLevel: number;
+    approximateRank: number;
+    badgeBreakdown: {
+      diamond: number;
+      gold: number;
+      silver: number;
+      bronze: number;
+    };
+    languages: number;
+    languageStats: Array<{
+      language: string;
+      badges: number;
+      avgScore: number;
+      bestBadge: string | null;
+    }>;
+    totalTimeSpent: number;
+    totalQuizzes: number;
+    uniqueDays: number;
+    recentActivity: {
+      tasks: number;
+      achievements: number;
+    };
+    totalInteractions: number;
+    totalAttempts: number;
+  };
+}
+
+const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((res) => res.json());
 
 export default function LeaderboardPage() {
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
@@ -40,7 +76,22 @@ export default function LeaderboardPage() {
     fetcher
   );
 
+  const { data: userStatsData, isLoading: statsLoading, error: statsError } = useSWR<UserStats>(
+    '/api/stats/user',
+    fetcher
+  );
+
   const leaderboard = data?.leaderboard || [];
+  const userStats = userStatsData?.stats;
+
+  // Debug logging
+  console.log('Stats Debug:', { 
+    userStatsData, 
+    userStats, 
+    statsLoading, 
+    statsError,
+    hasStats: !!userStats 
+  });
   const languages = ['Python', 'JavaScript', 'TypeScript', 'Java', 'C++', 'Rust'];
 
   const getRankColor = (rank: number) => {
@@ -67,7 +118,62 @@ export default function LeaderboardPage() {
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        type: 'spring' as const,
+        stiffness: 100,
+        damping: 15
+      }
+    },
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, scale: 0.95, y: 20 },
+    visible: { 
+      opacity: 1, 
+      scale: 1,
+      y: 0,
+      transition: {
+        type: 'spring' as const,
+        stiffness: 100,
+        damping: 15,
+        duration: 0.3
+      }
+    },
+    hover: {
+      scale: 1.02,
+      transition: {
+        type: 'spring' as const,
+        stiffness: 300,
+        damping: 20
+      }
+    }
+  };
+
+  const statCardVariants = {
+    hidden: { opacity: 0, y: 30, scale: 0.9 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        delay: i * 0.1,
+        type: 'spring' as const,
+        stiffness: 100,
+        damping: 15
+      }
+    }),
+    hover: {
+      scale: 1.05,
+      y: -5,
+      transition: {
+        type: 'spring' as const,
+        stiffness: 400,
+        damping: 25
+      }
+    }
   };
 
   return (
@@ -164,10 +270,13 @@ export default function LeaderboardPage() {
               return (
               <motion.div
                 key={entry._id}
-                whileHover={{ x: 8 }}
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
                 className={`p-6 rounded-lg bg-gradient-to-r ${getRankColor(
                   entry.rank
-                )} bg-opacity-10 border border-slate-700 hover:border-slate-600 transition-all`}
+                )} bg-opacity-10 border border-slate-700 hover:border-slate-600 transition-all cursor-pointer`}
                 style={{
                   borderLeft: `4px solid ${dominantBadge.color}`
                 }}
@@ -288,6 +397,311 @@ export default function LeaderboardPage() {
               </motion.div>
             );
             })}
+          </motion.div>
+        )}
+
+        {/* User Stats Section - Always show, even if empty */}
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="mt-12"
+        >
+          <motion.div variants={itemVariants} className="mb-6">
+            <div className="flex items-center gap-3 mb-2">
+              <BarChart3 className="w-6 h-6 text-blue-500" />
+              <h2 className="text-2xl font-bold text-white">Your Statistics</h2>
+            </div>
+            <p className="text-slate-400 text-sm">Track your progress and achievements</p>
+          </motion.div>
+
+          {/* Show stats if available */}
+          {userStats && (
+            <>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {/* Total Badges */}
+              <motion.div
+                variants={statCardVariants}
+                custom={0}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
+                className="p-6 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30 backdrop-blur-sm"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <Trophy className="w-8 h-8 text-purple-400" />
+                  <span className="text-3xl font-bold text-purple-300">{userStats?.totalBadges ?? 0}</span>
+                </div>
+                <p className="text-sm text-slate-300 font-medium">Total Badges</p>
+                <div className="mt-2 flex gap-2 text-xs">
+                  {(userStats?.badgeBreakdown?.diamond ?? 0) > 0 && (
+                    <span className="text-purple-400">💎 {userStats?.badgeBreakdown?.diamond ?? 0}</span>
+                  )}
+                  {(userStats?.badgeBreakdown?.gold ?? 0) > 0 && (
+                    <span className="text-amber-400">🥇 {userStats?.badgeBreakdown?.gold ?? 0}</span>
+                  )}
+                  {(userStats?.badgeBreakdown?.silver ?? 0) > 0 && (
+                    <span className="text-gray-400">🥈 {userStats?.badgeBreakdown?.silver ?? 0}</span>
+                  )}
+                  {(userStats?.badgeBreakdown?.bronze ?? 0) > 0 && (
+                    <span className="text-orange-400">🥉 {userStats?.badgeBreakdown?.bronze ?? 0}</span>
+                  )}
+                </div>
+              </motion.div>
+
+              {/* Skill Level */}
+              <motion.div
+                variants={statCardVariants}
+                custom={1}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
+                className="p-6 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30 backdrop-blur-sm"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <Zap className="w-8 h-8 text-blue-400" />
+                  <span className="text-3xl font-bold text-blue-300">{userStats?.skillLevel ?? 1}/10</span>
+                </div>
+                <p className="text-sm text-slate-300 font-medium">Skill Level</p>
+                <div className="mt-3 h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${((userStats?.skillLevel ?? 1) / 10) * 100}%` }}
+                    transition={{ duration: 1, ease: 'easeOut' }}
+                    className="h-full bg-gradient-to-r from-blue-500 to-blue-400"
+                  />
+                </div>
+              </motion.div>
+
+              {/* Average Score */}
+              <motion.div
+                variants={statCardVariants}
+                custom={2}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
+                className="p-6 rounded-xl bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/30 backdrop-blur-sm"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <Target className="w-8 h-8 text-green-400" />
+                  <span className="text-3xl font-bold text-green-300">{userStats?.avgScore ?? 0}%</span>
+                </div>
+                <p className="text-sm text-slate-300 font-medium">Average Score</p>
+                <p className="text-xs text-slate-400 mt-1">Best: {userStats?.bestScore ?? 0}%</p>
+              </motion.div>
+
+              {/* Completion Rate */}
+              <motion.div
+                variants={statCardVariants}
+                custom={3}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
+                className="p-6 rounded-xl bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30 backdrop-blur-sm"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <TrendingUp className="w-8 h-8 text-orange-400" />
+                  <span className="text-3xl font-bold text-orange-300">{userStats?.completionRate ?? 0}%</span>
+                </div>
+                <p className="text-sm text-slate-300 font-medium">Completion Rate</p>
+                <p className="text-xs text-slate-400 mt-1">{userStats?.completedTasks ?? 0}/{userStats?.totalTasks ?? 0} tasks</p>
+              </motion.div>
+            </div>
+
+            {/* Detailed Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* Languages */}
+              <motion.div
+                variants={statCardVariants}
+                custom={4}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
+                className="p-6 rounded-xl bg-gradient-to-br from-indigo-500/20 to-indigo-600/10 border border-indigo-500/30 backdrop-blur-sm"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <Code className="w-6 h-6 text-indigo-400" />
+                  <div>
+                    <p className="text-2xl font-bold text-indigo-300">{userStats?.languages ?? 0}</p>
+                    <p className="text-sm text-slate-300 font-medium">Languages</p>
+                  </div>
+                </div>
+                {(userStats?.languageStats?.length ?? 0) > 0 && (
+                  <div className="space-y-2">
+                    {(userStats?.languageStats ?? []).slice(0, 3).map((lang, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-300">{lang.language}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-indigo-400">{lang.badges} badges</span>
+                          {lang.bestBadge && (
+                            <span className="text-xs px-2 py-0.5 rounded" style={{
+                              backgroundColor: lang.bestBadge === 'Diamond' ? '#9333ea20' :
+                                              lang.bestBadge === 'Gold' ? '#f59e0b20' :
+                                              lang.bestBadge === 'Silver' ? '#6b728020' : '#cd7f3220',
+                              color: lang.bestBadge === 'Diamond' ? '#9333ea' :
+                                     lang.bestBadge === 'Gold' ? '#f59e0b' :
+                                     lang.bestBadge === 'Silver' ? '#6b7280' : '#cd7f32'
+                            }}>
+                              {lang.bestBadge}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Activity */}
+              <motion.div
+                variants={statCardVariants}
+                custom={5}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
+                className="p-6 rounded-xl bg-gradient-to-br from-pink-500/20 to-pink-600/10 border border-pink-500/30 backdrop-blur-sm"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <Clock className="w-6 h-6 text-pink-400" />
+                  <div>
+                    <p className="text-2xl font-bold text-pink-300">{userStats?.totalTimeSpent ?? 0}h</p>
+                    <p className="text-sm text-slate-300 font-medium">Time Spent</p>
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Active Days:</span>
+                    <span className="text-pink-300 font-medium">{userStats?.uniqueDays ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Quizzes Taken:</span>
+                    <span className="text-pink-300 font-medium">{userStats?.totalQuizzes ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Total Attempts:</span>
+                    <span className="text-pink-300 font-medium">{userStats?.totalAttempts ?? 0}</span>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Recent Activity */}
+              <motion.div
+                variants={statCardVariants}
+                custom={6}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
+                className="p-6 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 border border-cyan-500/30 backdrop-blur-sm"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <Award className="w-6 h-6 text-cyan-400" />
+                  <div>
+                    <p className="text-2xl font-bold text-cyan-300">Last 7 Days</p>
+                    <p className="text-sm text-slate-300 font-medium">Recent Activity</p>
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Tasks Completed:</span>
+                    <span className="text-cyan-300 font-medium">{userStats?.recentActivity?.tasks ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Achievements:</span>
+                    <span className="text-cyan-300 font-medium">{userStats?.recentActivity?.achievements ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Approx. Rank:</span>
+                    <span className="text-cyan-300 font-medium">#{userStats?.approximateRank ?? 'N/A'}</span>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Language Breakdown Chart */}
+            {(userStats?.languageStats?.length ?? 0) > 0 && (
+              <motion.div
+                variants={statCardVariants}
+                custom={7}
+                initial="hidden"
+                animate="visible"
+                className="p-6 rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700 backdrop-blur-sm"
+              >
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <Code className="w-5 h-5 text-blue-400" />
+                  Language Breakdown
+                </h3>
+                <div className="space-y-3">
+                  {(userStats?.languageStats ?? []).map((lang, idx) => {
+                    const maxBadges = Math.max(...(userStats?.languageStats ?? []).map(l => l.badges), 1);
+                    return (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className="space-y-1"
+                      >
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="text-slate-300 font-medium">{lang.language}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-slate-400">{lang.avgScore}% avg</span>
+                            <span className="text-blue-400 font-bold">{lang.badges} badges</span>
+                          </div>
+                        </div>
+                        <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(lang.badges / maxBadges) * 100}%` }}
+                            transition={{ duration: 0.8, delay: idx * 0.1, ease: 'easeOut' }}
+                            className="h-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                          />
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+            </>
+          )}
+
+          {/* Show message if no stats yet */}
+          {!userStats && !statsLoading && !statsError && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-6 rounded-xl bg-slate-800/50 border border-slate-700 text-center"
+            >
+              <p className="text-slate-400 text-sm">
+                Complete tasks and quizzes to see your statistics here!
+              </p>
+            </motion.div>
+          )}
+        </motion.div>
+
+        {/* Error State for Stats */}
+        {statsError && !statsLoading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-12 p-6 rounded-xl bg-red-500/10 border border-red-500/30"
+          >
+            <p className="text-red-400 text-sm">
+              Failed to load statistics. Please refresh the page or try again later.
+            </p>
+          </motion.div>
+        )}
+
+        {/* Loading State for Stats - Only show if stats section is not visible */}
+        {statsLoading && !userStats && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-12 flex items-center justify-center py-12"
+          >
+            <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+            <span className="ml-3 text-slate-400">Loading your statistics...</span>
           </motion.div>
         )}
       </motion.div>

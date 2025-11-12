@@ -21,7 +21,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createPortal } from "react-dom";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { showNotification } from "@/components/NotificationProvider";
 
 type Task = {
   _id: string;
@@ -61,6 +62,9 @@ export default function TasksPage() {
   const [aiLoading, setAILoading] = useState(false);
   const [aiRecommendations, setAIRecommendations] = useState<any>(null);
   const [showAIModal, setShowAIModal] = useState(false);
+  const [browseTasks, setBrowseTasks] = useState<any[]>([]);
+  const [showBrowseModal, setShowBrowseModal] = useState(false);
+  const [browseLoading, setBrowseLoading] = useState(false);
   const [selectedTaskDates, setSelectedTaskDates] = useState<Record<number, string>>({});
 
   // Refs for memory leak prevention
@@ -656,25 +660,150 @@ export default function TasksPage() {
     }
   }
 
+  // Browse All Tasks function
+  async function browseAllTasks() {
+    setBrowseLoading(true);
+    try {
+      const res = await fetch('/api/tasks/browse', { 
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to browse tasks');
+      }
+      
+      const data = await res.json();
+      setBrowseTasks(data.tasks || []);
+      setShowBrowseModal(true);
+    } catch (err) {
+      console.error('Browse tasks failed', err);
+      alert(`Failed to browse tasks: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setBrowseLoading(false);
+    }
+  }
+
   async function scheduleAITask(task: any, index: number) {
     const dueDate = selectedTaskDates[index];
     if (!dueDate) return;
 
     try {
+      // REQUIRED: Generate AI content for the task (description + exercises)
+      // Don't create task without description!
+      let aiDescription = '';
+      try {
+        console.log('🔄 Generating AI content for task:', task.title);
+        const contentRes = await fetch('/api/ai/generate-task-content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            taskTitle: task.title,
+            taskDifficulty: task.difficulty || task.details || 'medium',
+            taskCategory: task.category || 'general',
+            taskSkills: task.skills || [],
+            estimatedTime: task.minutes || task.estimatedTime || 30
+          })
+        });
+
+        if (!contentRes.ok) {
+          const errorText = await contentRes.text();
+          throw new Error(`AI content generation failed (${contentRes.status}): ${errorText}`);
+        }
+
+        const contentData = await contentRes.json();
+        if (!contentData.description) {
+          throw new Error('AI content response missing description');
+        }
+        
+        aiDescription = contentData.description;
+        console.log('✅ AI description generated:', {
+          length: aiDescription.length,
+          preview: aiDescription.substring(0, 150) + '...',
+          hasExercises: aiDescription.includes('## Exercises')
+        });
+      } catch (contentErr) {
+        console.error('❌ Failed to generate AI content:', contentErr);
+        const errorMsg = contentErr instanceof Error ? contentErr.message : 'Unknown error';
+        alert(`Failed to generate task description and exercises:\n${errorMsg}\n\nTask creation cancelled. Please try again.`);
+        return; // Don't create task without description!
+      }
+      
+      if (!aiDescription || aiDescription.length < 50) {
+        alert('Generated description is too short. Please try again.');
+        return;
+      }
+
+      // Truncate description if it's too long (safety check, but schema now allows up to 10000 chars)
+      const maxDescriptionLength = 10000;
+      const finalDescription = aiDescription.length > maxDescriptionLength 
+        ? aiDescription.substring(0, maxDescriptionLength - 100) + '\n\n... (description truncated)'
+        : aiDescription;
+
+      console.log('📝 Creating task with description length:', finalDescription.length);
+
       // Create task via /api/tasks endpoint - it will automatically be in "pending" status (To Do)
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: task.title,
-          description: task.description || `${task.category ? `Category: ${task.category}\n` : ''}${task.difficulty ? `Difficulty: ${task.difficulty}\n` : ''}${task.estimatedTime ? `Estimated Time: ${task.estimatedTime}\n` : ''}${task.skills ? `Skills: ${task.skills.join(', ')}` : ''}`,
+          description: finalDescription,
           dueAt: new Date(dueDate).toISOString(),
         }),
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to create task');
+        let errorMessage = 'Failed to create task';
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          if (errorData.details) {
+            errorMessage += `: ${errorData.details}`;
+          }
+        } catch (parseErr) {
+          // Response is not JSON, try to get text
+          try {
+            const errorText = await res.text();
+            errorMessage = errorText || `HTTP ${res.status}: ${res.statusText || 'Unknown error'}`;
+          } catch (textErr) {
+            errorMessage = `HTTP ${res.status}: ${res.statusText || 'Unknown error'}`;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const taskData = await res.json();
+      const createdTask = taskData.task;
+      
+      console.log('✅ Task created:', {
+        id: createdTask._id || createdTask.id,
+        title: createdTask.title,
+        hasDescription: !!createdTask.description,
+        descriptionLength: createdTask.description?.length || 0
+      });
+
+      // Track interaction: user viewed/started this recommended task
+      try {
+        await fetch('/api/ai/update-behavior', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            taskId: createdTask._id || createdTask.id,
+            taskTitle: task.title,
+            taskDifficulty: task.difficulty || task.details || 'medium',
+            taskCategory: task.category || 'general',
+            taskSkills: task.skills || [],
+            viewed: true,
+            started: false,
+            completed: false
+          })
+        });
+      } catch (trackErr) {
+        console.warn('Failed to track task interaction:', trackErr);
       }
 
       // Refresh tasks list
@@ -688,7 +817,12 @@ export default function TasksPage() {
         setTasks(tasksWithStatus);
       }
 
-      alert(`✅ Task "${task.title}" added to To Do!`);
+      // Show smooth notification
+      showNotification(
+        `Task "${task.title}" added to To Do with AI-generated content!`,
+        'success',
+        'Task Added'
+      );
       
       // Remove the scheduled date
       setSelectedTaskDates((prev) => {
@@ -697,8 +831,13 @@ export default function TasksPage() {
         return newDates;
       });
     } catch (err) {
-      console.error('Failed to schedule task:', err);
-      alert('Failed to schedule task');
+      console.error('❌ Failed to schedule task:', err);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      showNotification(
+        `Failed to create task: ${errorMsg}`,
+        'error',
+        'Error'
+      );
     }
   }
 
@@ -722,7 +861,37 @@ export default function TasksPage() {
           </div>
 
           {/* View Toggle and AI Recommendations */}
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Browse All Tasks Button - MUST BE VISIBLE */}
+            <button
+              onClick={browseAllTasks}
+              disabled={browseLoading}
+              title="Browse all available tasks in the system"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                whiteSpace: 'nowrap',
+                background: 'linear-gradient(90deg, #667eea, #764ba2)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '600',
+                fontSize: '14px',
+                cursor: browseLoading ? 'not-allowed' : 'pointer',
+                opacity: browseLoading ? 0.6 : 1,
+                transition: 'all 0.3s ease',
+                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+                minWidth: '160px',
+                position: 'relative',
+                zIndex: 1
+              }}
+            >
+              <span style={{ fontSize: '18px' }}>📚</span>
+              {browseLoading ? 'Loading...' : 'Browse All Tasks'}
+            </button>
+
             {/* AI Recommendations Button */}
             <button
               onClick={getAIRecommendations}
@@ -741,7 +910,9 @@ export default function TasksPage() {
                 fontSize: '14px',
                 cursor: aiLoading ? 'not-allowed' : 'pointer',
                 opacity: aiLoading ? 0.6 : 1,
-                transition: 'all 0.3s ease'
+                transition: 'all 0.3s ease',
+                position: 'relative',
+                zIndex: 1
               }}
             >
               <span style={{ fontSize: '18px' }}>🤖</span>
@@ -929,37 +1100,245 @@ export default function TasksPage() {
             : null}
         </DndContext>
 
-        {/* AI Recommendations Modal */}
-        {showAIModal && aiRecommendations && (
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0, 0, 0, 0.7)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-              padding: '20px'
-            }}
-            onClick={() => setShowAIModal(false)}
-          >
-            <div
+        {/* Browse All Tasks Modal */}
+        <AnimatePresence>
+          {showBrowseModal && browseTasks && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               style={{
-                background: 'linear-gradient(135deg, #FFF8E7 0%, #FFE5D9 100%)',
-                borderRadius: '16px',
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0, 0, 0, 0.7)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                padding: '20px',
+                backdropFilter: 'blur(4px)'
+              }}
+              onClick={() => setShowBrowseModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ 
+                  type: 'spring',
+                  stiffness: 300,
+                  damping: 30,
+                  duration: 0.3
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #E8F4F8 0%, #D4E8F0 100%)',
+                  borderRadius: '16px',
                 padding: '32px',
-                maxWidth: '800px',
+                maxWidth: '900px',
                 maxHeight: '90vh',
                 overflow: 'auto',
                 boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
-                position: 'relative'
+                position: 'relative',
+                width: '100%'
               }}
               onClick={(e) => e.stopPropagation()}
             >
+              <button
+                onClick={() => setShowBrowseModal(false)}
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#2c5282'
+                }}
+              >
+                ✕
+              </button>
+
+              <div style={{ marginBottom: '24px' }}>
+                <h2 style={{ color: '#2c5282', fontSize: '28px', fontWeight: 'bold', marginBottom: '8px' }}>
+                  📚 Browse All Available Tasks
+                </h2>
+                <p style={{ color: '#4a5568', fontSize: '14px' }}>
+                  Select from all available tasks in the system. Each task will be personalized with AI-generated content when you add it.
+                </p>
+                <p style={{ color: '#718096', fontSize: '12px', marginTop: '8px' }}>
+                  Showing {browseTasks.length} tasks
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {browseTasks.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{ textAlign: 'center', padding: '40px', color: '#718096' }}
+                  >
+                    <p style={{ fontSize: '16px' }}>No tasks available yet.</p>
+                    <p style={{ fontSize: '14px', marginTop: '8px' }}>Try getting AI recommendations to create some tasks!</p>
+                  </motion.div>
+                ) : (
+                  browseTasks.map((task: any, index: number) => (
+                    <motion.div
+                      key={task.id || index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1, type: 'spring', stiffness: 100, damping: 15 }}
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      style={{
+                        background: 'white',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        border: '2px solid #BEE3F8',
+                        boxShadow: '0 2px 8px rgba(44, 82, 130, 0.1)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <h3 style={{ color: '#2c5282', fontSize: '18px', fontWeight: 'bold', flex: 1 }}>
+                          {task.title}
+                        </h3>
+                        <span
+                          style={{
+                            background:
+                              task.difficulty === 'easy'
+                                ? '#4CAF50'
+                                : task.difficulty === 'medium'
+                                ? '#FF9800'
+                                : '#F44336',
+                            color: 'white',
+                            padding: '4px 12px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            marginLeft: '12px'
+                          }}
+                        >
+                          {task.difficulty}
+                        </span>
+                      </div>
+
+                      {task.description && (
+                        <p style={{ color: '#666', fontSize: '14px', marginBottom: '12px', lineHeight: '1.5' }}>
+                          {task.description.substring(0, 150)}{task.description.length > 150 ? '...' : ''}
+                        </p>
+                      )}
+
+                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                        <span style={{ color: '#4a5568', fontSize: '12px' }}>
+                          📂 {task.category || 'general'}
+                        </span>
+                        <span style={{ color: '#4a5568', fontSize: '12px' }}>
+                          ⏱️ {task.estimatedTime || task.minutes || 30} min
+                        </span>
+                        {task.skills && task.skills.length > 0 && (
+                          <span style={{ color: '#4a5568', fontSize: '12px' }}>
+                            🎯 {task.skills.join(', ')}
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <label style={{ color: '#2c5282', fontSize: '14px', fontWeight: 'bold' }}>
+                          Due Date:
+                        </label>
+                        <input
+                          type="date"
+                          value={selectedTaskDates[index] || ''}
+                          onChange={(e) =>
+                            setSelectedTaskDates((prev) => ({ ...prev, [index]: e.target.value }))
+                          }
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '2px solid #BEE3F8',
+                            fontSize: '14px',
+                            flex: 1
+                          }}
+                        />
+                        <button
+                          onClick={() => scheduleAITask(task, index)}
+                          disabled={!selectedTaskDates[index]}
+                          style={{
+                            background: selectedTaskDates[index]
+                              ? 'linear-gradient(135deg, #2c5282, #3182ce)'
+                              : '#ccc',
+                            color: 'white',
+                            border: 'none',
+                            padding: '8px 16px',
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            cursor: selectedTaskDates[index] ? 'pointer' : 'not-allowed',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          📅 Add to Tasks
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* AI Recommendations Modal */}
+        <AnimatePresence>
+          {showAIModal && aiRecommendations && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0, 0, 0, 0.7)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                padding: '20px',
+                backdropFilter: 'blur(4px)'
+              }}
+              onClick={() => setShowAIModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ 
+                  type: 'spring',
+                  stiffness: 300,
+                  damping: 30,
+                  duration: 0.3
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #FFF8E7 0%, #FFE5D9 100%)',
+                  borderRadius: '16px',
+                  padding: '32px',
+                  maxWidth: '800px',
+                  maxHeight: '90vh',
+                  overflow: 'auto',
+                  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
+                  position: 'relative'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
               <button
                 onClick={() => setShowAIModal(false)}
                 style={{
@@ -980,6 +1359,22 @@ export default function TasksPage() {
                 <h2 style={{ color: '#8B4513', fontSize: '28px', fontWeight: 'bold', marginBottom: '8px' }}>
                   🤖 AI Task Recommendations
                 </h2>
+                {aiRecommendations.warning && (
+                  <div style={{
+                    background: 'rgba(255, 193, 7, 0.2)',
+                    border: '2px solid #ffc107',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    marginBottom: '12px'
+                  }}>
+                    <p style={{ color: '#856404', fontSize: '13px', fontWeight: '600', margin: '0 0 4px 0' }}>
+                      ⚠️ Using Default Recommendations
+                    </p>
+                    <p style={{ color: '#856404', fontSize: '12px', margin: '0' }}>
+                      {aiRecommendations.warning} Complete at least 3-5 tasks to get personalized recommendations based on your performance!
+                    </p>
+                  </div>
+                )}
                 <p style={{ color: '#A0522D', fontSize: '14px' }}>
                   {aiRecommendations.adaptiveMessage || 'Here are personalized tasks based on your learning profile.'}
                 </p>
@@ -990,14 +1385,19 @@ export default function TasksPage() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {aiRecommendations.tasks.map((task: any, index: number) => (
-                  <div
+                  <motion.div
                     key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1, type: 'spring', stiffness: 100, damping: 15 }}
+                    whileHover={{ scale: 1.02, y: -2 }}
                     style={{
                       background: 'white',
                       borderRadius: '12px',
                       padding: '20px',
                       border: '2px solid #FFECD1',
-                      boxShadow: '0 2px 8px rgba(139, 69, 19, 0.1)'
+                      boxShadow: '0 2px 8px rgba(139, 69, 19, 0.1)',
+                      cursor: 'pointer'
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
@@ -1078,27 +1478,80 @@ export default function TasksPage() {
                         }}
                       >
                         📅 Add to Tasks
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
               </div>
-            </div>
-          </div>
-        )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }  // List View (modern design)
   return (
-    <div className="github-container">
+      <div className="github-container">
       <div className="github-page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
         <div>
           <h1 className="github-page-title">Task Management</h1>
           <p className="github-page-description">Organize and track your tasks with AI-powered insights</p>
         </div>
 
-        {/* View Toggle Buttons */}
-        <div style={{ display: 'flex', background: 'var(--panel)', borderRadius: '8px', padding: '4px', border: '1px solid var(--border)' }}>
+        {/* View Toggle and Buttons */}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {/* Browse All Tasks Button */}
+          <button
+            onClick={browseAllTasks}
+            disabled={browseLoading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              whiteSpace: 'nowrap',
+              background: 'linear-gradient(90deg, #667eea, #764ba2)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              fontSize: '14px',
+              cursor: browseLoading ? 'not-allowed' : 'pointer',
+              opacity: browseLoading ? 0.6 : 1,
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <span style={{ fontSize: '18px' }}>📚</span>
+            {browseLoading ? 'Loading...' : 'Browse All Tasks'}
+          </button>
+
+          {/* AI Recommendations Button */}
+          <button
+            onClick={getAIRecommendations}
+            disabled={aiLoading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              whiteSpace: 'nowrap',
+              background: 'linear-gradient(90deg,#ff7a66,#ffab66)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              fontSize: '14px',
+              cursor: aiLoading ? 'not-allowed' : 'pointer',
+              opacity: aiLoading ? 0.6 : 1,
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <span style={{ fontSize: '18px' }}>🤖</span>
+            {aiLoading ? 'Loading...' : 'Get AI Recommendations'}
+          </button>
+
+          {/* View Toggle Buttons */}
+          <div style={{ display: 'flex', background: 'var(--panel)', borderRadius: '8px', padding: '4px', border: '1px solid var(--border)' }}>
           <button
             style={{
               padding: '8px 16px',
@@ -1133,6 +1586,7 @@ export default function TasksPage() {
           >
             Board View
           </button>
+        </div>
         </div>
       </div>
 

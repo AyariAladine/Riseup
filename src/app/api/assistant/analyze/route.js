@@ -291,6 +291,70 @@ ${req.__fileTextSample || ''}
   
   console.log(`[Assistant] Grading complete. Score: ${score}, Passed: ${passed}, Task context present: ${!!taskContext}`);
   
+  // Update skill level and unlock achievements for any submission (quiz or challenge)
+  if (score >= 0) {
+    try {
+      const { getUserFromRequest } = await import('@/lib/auth');
+      const { user } = await getUserFromRequest(req);
+      
+      if (user) {
+        // Update skill level
+        const { updateSkillLevel, detectLanguageFromTask } = await import('@/lib/update-skill-level');
+        const { determineBadgeLevel } = await import('@/lib/achievement-utils');
+        
+        try {
+          const skillLevelUpdate = await updateSkillLevel(user._id, score);
+          out.skillLevel = skillLevelUpdate;
+          console.log(`[Assistant] Skill level updated:`, skillLevelUpdate);
+        } catch (skillError) {
+          console.error('[Assistant] Failed to update skill level:', skillError);
+        }
+
+        // Unlock achievement if score >= 70
+        if (score >= 70) {
+          try {
+            const badge = determineBadgeLevel(score);
+            if (badge) {
+              const language = taskContext ? detectLanguageFromTask(taskContext) : 'JavaScript';
+              
+              const unlockRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/achievements/unlock`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Cookie': req.headers.get('cookie') || ''
+                },
+                body: JSON.stringify({
+                  language,
+                  score: score,
+                  challengeTitle: taskContext ? (typeof taskContext === 'string' ? JSON.parse(taskContext).title : taskContext.title) : 'Challenge Completion',
+                  testId: `challenge-${Date.now()}`
+                })
+              });
+
+              if (unlockRes.ok) {
+                const unlockData = await unlockRes.json();
+                if (unlockData.success) {
+                  out.achievement = {
+                    badge,
+                    language,
+                    rarity: unlockData.achievement?.rarity,
+                    message: unlockData.message
+                  };
+                  console.log(`[Assistant] Achievement unlocked:`, out.achievement);
+                }
+              }
+            }
+          } catch (achievementError) {
+            console.error('[Assistant] Failed to unlock achievement:', achievementError);
+          }
+        }
+      }
+    } catch (updateError) {
+      console.error('[Assistant] Error updating skill/achievement:', updateError);
+      // Don't fail the whole request
+    }
+  }
+  
   // If score >= 70 and we have a task context, complete the task and mint NFT
   if (score >= 70 && taskContext) {
     try {

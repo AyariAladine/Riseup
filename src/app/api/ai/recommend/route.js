@@ -64,14 +64,42 @@ export async function POST(request) {
     }
 
     const data = await response.json();
-    console.log('AI recommendations received:', data);
+    console.log('AI recommendations received:', {
+      taskCount: data?.tasks?.length || 0,
+      source: data?.source || 'unknown'
+    });
+
+    // Check if we're getting bootstrap tasks (they have IDs like 'easy_1', 'medium_1', etc.)
+    const isBootstrap = data?.tasks?.some(t => 
+      t.id?.startsWith('easy_') || 
+      t.id?.startsWith('medium_') || 
+      t.id?.startsWith('hard_') ||
+      (t.title === 'Read a short article on JS basics' && t.id === 'easy_1')
+    );
+
+    if (isBootstrap) {
+      console.warn('⚠️ Using bootstrap recommendations - need more user interactions or MongoDB connection');
+    }
 
     // Map to dashboard shape while preserving original fields
     const plan = Array.isArray(data?.tasks)
-      ? data.tasks.map((t) => ({ title: t.title, minutes: t.minutes, details: t.details || t.difficulty }))
+      ? data.tasks.map((t) => ({ 
+          title: t.title, 
+          minutes: t.minutes || t.estimatedTime || 30, 
+          details: t.details || t.difficulty,
+          difficulty: t.difficulty,
+          category: t.category || 'general',
+          skills: t.skills || [],
+          estimatedTime: t.minutes || t.estimatedTime || 30
+        }))
       : [];
 
-    return NextResponse.json({ ...data, plan, source: 'lightfm' }, { status: 200 });
+    return NextResponse.json({ 
+      ...data, 
+      plan, 
+      source: isBootstrap ? 'bootstrap' : 'lightfm',
+      warning: isBootstrap ? 'Using default recommendations. Complete more tasks to get personalized recommendations!' : undefined
+    }, { status: 200 });
   } catch (error) {
     console.error('AI Recommendation error:', error);
     return NextResponse.json({ 

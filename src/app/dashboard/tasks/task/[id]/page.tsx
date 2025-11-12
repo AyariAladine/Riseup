@@ -3,7 +3,8 @@
 import { notFound, useRouter } from 'next/navigation';
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FaRegCalendarAlt, FaRegClock, FaCheckCircle, FaRegLightbulb, FaTrophy, FaExternalLinkAlt, FaStar } from 'react-icons/fa';
+import { FaRegCalendarAlt, FaRegClock, FaCheckCircle, FaRegLightbulb, FaTrophy, FaExternalLinkAlt, FaStar, FaDownload } from 'react-icons/fa';
+import { showNotification } from "@/components/NotificationProvider";
 
 type Message = {
   role: 'user' | 'assistant' | 'system';
@@ -16,6 +17,9 @@ type Task = {
   title: string;
   description?: string;
   difficulty?: 'easy' | 'medium' | 'hard';
+  category?: string;
+  skills?: string[];
+  estimatedTime?: number;
   dueAt?: string | Date;
   completed?: boolean;
   status?: string;
@@ -33,6 +37,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   const resolvedParams = use(params);
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingExercise, setDownloadingExercise] = useState(false);
 
   useEffect(() => {
     async function fetchTask() {
@@ -82,6 +87,64 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
     if (score >= 60) return { tier: 'Silver', color: '#9ca3af', emoji: '🥈' };
     return { tier: 'Bronze', color: '#d97706', emoji: '🥉' };
   };
+
+  // Extract short description (first paragraph or first 200 chars)
+  const getShortDescription = (description?: string): string => {
+    if (!description) return '';
+    // Try to get first paragraph
+    const firstParagraph = description.split('\n\n')[0] || description.split('\n')[0] || description;
+    // Limit to 200 characters
+    if (firstParagraph.length > 200) {
+      return firstParagraph.substring(0, 197) + '...';
+    }
+    return firstParagraph;
+  };
+
+  // Download coding exercise
+  async function downloadCodingExercise() {
+    if (!task) return;
+    
+    setDownloadingExercise(true);
+    try {
+      const res = await fetch(`/api/tasks/${task._id}/coding-exercise`, {
+        credentials: 'include'
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: 'Failed to generate exercise' }));
+        throw new Error(error.error || 'Failed to download exercise');
+      }
+
+      // Get the file content
+      const blob = await res.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `coding-exercise-${task.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      // Show smooth notification
+      showNotification(
+        'Coding exercise downloaded successfully!',
+        'success',
+        'Download Complete'
+      );
+    } catch (err) {
+      console.error('Failed to download exercise:', err);
+      showNotification(
+        `Failed to download exercise: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        'error',
+        'Download Failed'
+      );
+    } finally {
+      setDownloadingExercise(false);
+    }
+  }
 
   return (
     <div style={{ 
@@ -187,35 +250,256 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           </div>
 
-          {/* Description */}
-          {task.description && (
-            <div style={{ 
+          {/* Short Description */}
+          {getShortDescription(task.description) && (
+            <div style={{
               marginTop: 20,
-              paddingTop: 20,
-              borderTop: '1px solid var(--border)',
-              fontSize: 15, 
-              color: 'var(--muted)', 
-              lineHeight: 1.6
+              padding: '16px 20px',
+              background: 'var(--panel-2)',
+              borderRadius: '8px',
+              border: '1px solid var(--border)'
             }}>
-              {task.description}
+              <p style={{
+                margin: 0,
+                fontSize: 15,
+                color: 'var(--fg)',
+                lineHeight: 1.6
+              }}>
+                {getShortDescription(task.description)}
+              </p>
             </div>
           )}
-          
-          {!task.description && (
-            <div style={{ 
-              marginTop: 20,
-              paddingTop: 20,
-              borderTop: '1px solid var(--border)',
-              fontSize: 14,
-              color: 'var(--muted)',
-              fontStyle: 'italic',
+        </div>
+
+        {/* Download Coding Exercise Button - SEPARATE CARD - ALWAYS VISIBLE */}
+        <div className="github-card" style={{
+          marginBottom: 20,
+          padding: '28px',
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.12) 100%)',
+          borderRadius: '16px',
+          border: '3px solid rgba(16, 185, 129, 0.6)',
+          boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)',
+          position: 'relative',
+          zIndex: 10
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+            <div style={{
+              width: 64,
+              height: 64,
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              borderRadius: '14px',
               display: 'flex',
               alignItems: 'center',
-              gap: 8
+              justifyContent: 'center',
+              boxShadow: '0 8px 20px rgba(16, 185, 129, 0.5)',
+              flexShrink: 0
             }}>
-              <span style={{ fontSize: 18 }}>📝</span> No description provided for this task.
+              <FaDownload size={28} color="white" />
             </div>
-          )}
+            <div style={{ flex: 1 }}>
+              <h3 style={{
+                margin: 0,
+                marginBottom: 8,
+                fontSize: 22,
+                fontWeight: 700,
+                color: 'var(--fg)'
+              }}>
+                📥 Download Coding Exercise (.txt)
+              </h3>
+              <p style={{
+                margin: 0,
+                fontSize: 15,
+                color: 'var(--muted)',
+                lineHeight: 1.6
+              }}>
+                Get a personalized coding problem with a <strong>code template</strong> that you can modify and submit for grading. The file contains fill-in-the-blank code with <code>___</code> or <code>TODO:</code> markers.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={downloadCodingExercise}
+            disabled={downloadingExercise || !task}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+              padding: '18px 32px',
+              background: downloadingExercise || !task 
+                ? '#9ca3af' 
+                : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '17px',
+              fontWeight: '700',
+              cursor: downloadingExercise || !task ? 'not-allowed' : 'pointer',
+              opacity: downloadingExercise || !task ? 0.6 : 1,
+              boxShadow: downloadingExercise || !task 
+                ? 'none' 
+                : '0 8px 24px rgba(16, 185, 129, 0.6)',
+              transition: 'all 0.3s ease',
+              width: '100%',
+              textTransform: 'uppercase',
+              letterSpacing: '1px'
+            }}
+            onMouseEnter={(e) => {
+              if (!downloadingExercise && task) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.7)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!downloadingExercise && task) {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.6)';
+              }
+            }}
+          >
+            <FaDownload size={20} />
+            {downloadingExercise ? '⏳ Generating Exercise...' : '⬇️ Download Coding Exercise (.txt)'}
+          </button>
+          <p style={{
+            margin: 0,
+            marginTop: 12,
+            fontSize: 13,
+            color: 'var(--muted)',
+            textAlign: 'center',
+            fontStyle: 'italic'
+          }}>
+            💡 The downloaded file will contain a code template with blanks to fill in. Modify it and submit for grading!
+          </p>
+        </div>
+
+        {/* Description Section */}
+        <div className="github-card" style={{ marginBottom: 20, padding: '32px 24px' }}>
+          <div style={{ 
+            marginBottom: 20,
+            paddingBottom: 20,
+            borderBottom: '2px solid var(--border)'
+          }}>
+            <h2 style={{
+              margin: 0,
+              marginBottom: 16,
+              fontSize: 20,
+              fontWeight: 700,
+              color: 'var(--fg)'
+            }}>
+              📖 Task Description & Exercises
+            </h2>
+            
+            {task.description ? (
+              <div style={{ 
+                fontSize: 15, 
+                color: 'var(--muted)', 
+                lineHeight: 1.8
+              }}>
+                <div 
+                  dangerouslySetInnerHTML={{ 
+                    __html: task.description
+                      .replace(/```([\s\S]*?)```/g, '<pre style="background: var(--panel-2); padding: 12px; border-radius: 6px; overflow-x: auto; margin: 12px 0; border: 1px solid var(--border);"><code style="font-family: monospace; font-size: 14px;">$1</code></pre>')
+                      .replace(/## (.*?)(\n|$)/g, '<h2 style="color: var(--fg); margin-top: 24px; margin-bottom: 12px; font-size: 20px; font-weight: 600;">$1</h2>')
+                      .replace(/### (.*?)(\n|$)/g, '<h3 style="color: var(--fg); margin-top: 20px; margin-bottom: 8px; font-size: 18px; font-weight: 600;">$1</h3>')
+                      .replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--fg); font-weight: 600;">$1</strong>')
+                      .replace(/- (.*?)(\n|$)/g, '<li style="margin-left: 20px; margin-bottom: 8px; list-style-type: disc;">$1</li>')
+                      .replace(/\n/g, '<br>')
+                  }} 
+                />
+              </div>
+            ) : (
+              <div style={{ 
+                padding: '24px',
+                background: 'var(--panel-2)',
+                borderRadius: '12px',
+                border: '2px dashed var(--border)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+                alignItems: 'center',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: 48, opacity: 0.6 }}>📝</div>
+                <div>
+                  <p style={{ 
+                    margin: 0,
+                    marginBottom: 8,
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: 'var(--fg)'
+                  }}>
+                    No description available
+                  </p>
+                  <p style={{ 
+                    margin: 0,
+                    fontSize: 14,
+                    color: 'var(--muted)'
+                  }}>
+                    Generate a detailed description with exercises and learning objectives
+                  </p>
+                </div>
+                <button
+                onClick={async () => {
+                  try {
+                    setLoading(true);
+                    const res = await fetch('/api/ai/generate-task-content', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({
+                        taskTitle: task.title,
+                        taskDifficulty: task.difficulty || 'medium',
+                        taskCategory: task.category || 'general',
+                        taskSkills: task.skills || [],
+                        estimatedTime: task.estimatedTime || 30
+                      })
+                    });
+                    
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (data.description) {
+                        // Update task description
+                        const updateRes = await fetch(`/api/tasks/${task._id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ description: data.description })
+                        });
+                        
+                        if (updateRes.ok) {
+                          const updated = await updateRes.json();
+                          setTask(updated.task);
+                          alert('✅ Description and exercises generated!');
+                        }
+                      }
+                    }
+                  } catch (err) {
+                    console.error('Failed to generate description:', err);
+                    alert('Failed to generate description');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                style={{
+                  padding: '10px 20px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.6 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                  {loading ? '⏳' : '✨'} {loading ? 'Generating...' : 'Generate Description & Exercises'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* NFT Badge Display (if minted) */}
