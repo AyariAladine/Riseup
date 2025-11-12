@@ -38,6 +38,62 @@ const ReclamationSchema = new mongoose.Schema(
       maxlength: 1000,
       default: '',
     },
+    // Chatbot fields
+    chatHistory: [
+      {
+        role: {
+          type: String,
+          enum: ['user', 'assistant', 'admin'],
+          required: true,
+        },
+        content: {
+          type: String,
+          required: true,
+          maxlength: 2000,
+        },
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+        sourceModel: {
+          type: String,
+          enum: ['groq', 'heuristic', 'admin', 'system'],
+          default: 'admin',
+        },
+      },
+    ],
+    suggestedSolutions: {
+      type: [String],
+      default: [],
+    },
+    resolution: {
+      type: String,
+      maxlength: 2000,
+      default: '',
+    },
+    resolvedAt: {
+      type: Date,
+      default: null,
+    },
+    aiAnalysis: {
+      intent: String,
+      sentiment: {
+        type: String,
+        enum: ['positive', 'negative', 'neutral'],
+        default: 'neutral',
+      },
+      priority_suggested: {
+        type: String,
+        enum: ['low', 'medium', 'high'],
+        default: 'medium',
+      },
+      confidence: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: 0,
+      },
+    },
   },
   {
     timestamps: true,

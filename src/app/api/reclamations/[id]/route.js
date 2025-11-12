@@ -3,92 +3,43 @@ import { getUserFromRequest } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import Reclamation from '@/models/Reclamation';
 
-export const dynamic = 'force-dynamic';
-
-// GET - Get a single reclamation
-export async function GET(req, { params }) {
-  try {
-    const { user } = await getUserFromRequest(req);
-    await connectToDatabase();
-
-  const { id } = await params;
-    const reclamation = await Reclamation.findOne({ _id: id, userId: user._id }).lean();
-
-    if (!reclamation) {
-      return NextResponse.json({ error: 'Reclamation not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ reclamation });
-  } catch (e) {
-    console.error('GET /api/reclamations/[id] error:', e);
-    return NextResponse.json(
-      { error: e?.message || 'Failed to fetch reclamation' },
-      { status: 500 }
-    );
-  }
-}
-
-// PATCH - Update a reclamation
-export async function PATCH(req, { params }) {
-  try {
-    const { user } = await getUserFromRequest(req);
-    await connectToDatabase();
-
-  const { id } = await params;
-    const body = await req.json();
-    const { title, description, category, priority } = body;
-
-    const reclamation = await Reclamation.findOne({ _id: id, userId: user._id });
-
-    if (!reclamation) {
-      return NextResponse.json({ error: 'Reclamation not found' }, { status: 404 });
-    }
-
-    // Don't allow updates if already resolved or closed
-    if (reclamation.status === 'resolved' || reclamation.status === 'closed') {
-      return NextResponse.json(
-        { error: 'Cannot update resolved or closed reclamations' },
-        { status: 400 }
-      );
-    }
-
-    if (title) reclamation.title = title;
-    if (description) reclamation.description = description;
-    if (category) reclamation.category = category;
-    if (priority) reclamation.priority = priority;
-
-    await reclamation.save();
-
-    return NextResponse.json({ reclamation });
-  } catch (e) {
-    console.error('PATCH /api/reclamations/[id] error:', e);
-    return NextResponse.json(
-      { error: e?.message || 'Failed to update reclamation' },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE - Delete a reclamation
 export async function DELETE(req, { params }) {
   try {
+    console.log('🗑️ DELETE ticket request received');
+    
     const { user } = await getUserFromRequest(req);
     await connectToDatabase();
 
-  const { id } = await params;
-    const reclamation = await Reclamation.findOne({ _id: id, userId: user._id });
+    const { id: reclamationId } = params;
+    console.log('📝 Deleting ticket ID:', reclamationId);
 
+    // Find and delete the reclamation
+    const reclamation = await Reclamation.findById(reclamationId);
     if (!reclamation) {
-      return NextResponse.json({ error: 'Reclamation not found' }, { status: 404 });
+      console.log('❌ Ticket not found');
+      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
     }
 
-    await reclamation.deleteOne();
+    // Verify ownership
+    if (reclamation.userId.toString() !== user._id.toString() && !user.isAdmin) {
+      console.log('❌ Access denied');
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
 
-    return NextResponse.json({ message: 'Reclamation deleted successfully' });
-  } catch (e) {
-    console.error('DELETE /api/reclamations/[id] error:', e);
+    // Delete the ticket
+    await Reclamation.findByIdAndDelete(reclamationId);
+    
+    console.log('✅ Ticket deleted successfully');
+
+    return NextResponse.json({
+      success: true,
+      message: 'Ticket deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ DELETE ticket error:', error);
     return NextResponse.json(
-      { error: e?.message || 'Failed to delete reclamation' },
+      { error: error.message || 'Failed to delete ticket' },
       { status: 500 }
     );
   }
