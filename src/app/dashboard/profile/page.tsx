@@ -34,6 +34,7 @@ export default function DashboardProfile() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
+  const [oldPassword, setOldPassword] = useState('');
   const [avatar, setAvatar] = useState('');
   const [theme, setTheme] = useState<Theme>('system');
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -71,7 +72,10 @@ export default function DashboardProfile() {
   // NFT Badges state
   const [nftBadges, setNftBadges] = useState<any[]>([]);
   const [loadingBadges, setLoadingBadges] = useState(true);
-
+  const [showPasswordVerification, setShowPasswordVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationCountdown, setVerificationCountdown] = useState(0);
   // User Stats
   const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((res) => res.json());
   const { data: userStatsData, isLoading: statsLoading, error: statsError } = useSWR(
@@ -90,6 +94,7 @@ export default function DashboardProfile() {
     if (profile) {
       console.log('Profile loaded:', profile);
       console.log('Avatar from profile:', profile.avatar);
+      console.log('Profile id:', profile.id);
       setName(profile.name || '');
       setEmail(profile.email || '');
       setAvatar(profile.avatar || '');
@@ -99,6 +104,13 @@ export default function DashboardProfile() {
       setIsOnline(Boolean(profile.preferences?.isOnline ?? true));
     }
   }, [profile]);
+
+  useEffect(() => {
+  if (verificationCountdown > 0) {
+    const timer = setTimeout(() => setVerificationCountdown(verificationCountdown - 1), 1000);
+    return () => clearTimeout(timer);
+  }
+}, [verificationCountdown]);
 
   // Update local state when cached reclamations change
   useEffect(() => {
@@ -168,67 +180,57 @@ export default function DashboardProfile() {
   // Face verification for sensitive operations
   const { isModalOpen, openVerification, closeVerification, handleVerified, verifyWithFace } = useFaceVerification();
 
-  async function handlePasswordChange() {
-    if (!password) {
-      setMessage('Please enter a new password');
-      return;
-    }
-    
-    // Validate new password
-    if (password.length < 8) {
-      setMessage('Password must be at least 8 characters');
-      return;
-    }
-    
-    // Premium users: Use face verification instead of old password
-    if (isPremium) {
+ async function handlePasswordChange() {
+  if (!password) {
+    setMessage('Please enter a new password');
+    return;
+  }
+  // Validate new password
+  if (password.length < 8) {
+    setMessage('Password must be at least 8 characters');
+    return;
+  }
+
+  // Premium users: Use face verification, but always require old password
+  if (isPremium) {
+    if (!showPasswordVerification) {
+      // Step 1: Ask for old password, then verify face
+      if (!oldPassword) {
+        setMessage('Please enter your old password');
+        return;
+      }
       await verifyWithFace(async () => {
-        setSaving(true);
-        setMessage('');
+        // Face verified, now send email code
         try {
-          const response = await fetch('/api/auth/set-password-with-face', {
+          const response = await fetch('/api/auth/password-change-verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ 
-              newPassword: password,
-              isPremium: true
-            }),
+            body: JSON.stringify({ userId: profile?.id }),
           });
 
           const data = await response.json();
 
           if (!response.ok) {
-            throw new Error(data.error || 'Failed to update password');
+            throw new Error(data.error || 'Failed to send verification code');
           }
-          
-          setMessage('✅ Password updated successfully with face verification!');
-          setPassword('');
-          setCurrentPassword('');
-          
-          // Send Firebase push notification for password change
-          try {
-            await fetch('/api/notifications/password-changed', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-            });
-          } catch (notifErr) {
-            console.error('Failed to send password changed notification:', notifErr);
-          }
+
+          setShowPasswordVerification(true);
+          setVerificationSent(true);
+          setVerificationCountdown(600); // 10 minutes
+          setMessage('✅ Verification code sent to your email. Check your inbox.');
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           setMessage(`❌ ${msg}`);
-        } finally {
-          setSaving(false);
         }
       });
     } else {
-      // Non-premium users: Require old password
-      if (!currentPassword) {
-        setMessage('Please enter your current password');
+      // Step 2: Verify code and change password
+      if (!verificationCode || verificationCode.length !== 6) {
+        setMessage('Please enter the 6-digit verification code');
         return;
       }
-      
+
       setSaving(true);
       setMessage('');
       try {
@@ -237,9 +239,11 @@ export default function DashboardProfile() {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ 
+            userId: profile?.id,
             newPassword: password,
-            oldPassword: currentPassword,
-            isPremium: false
+            verificationCode: verificationCode,
+            isPremium: true,
+            oldPassword: oldPassword || '' // Always send oldPassword
           }),
         });
 
@@ -251,16 +255,19 @@ export default function DashboardProfile() {
         
         setMessage('✅ Password updated successfully!');
         setPassword('');
-        setCurrentPassword('');
+        setVerificationCode('');
+        setShowPasswordVerification(false);
+        setVerificationSent(false);
+        setOldPassword('');
         
-        // Send Firebase push notification for password change
+        // Send Firebase push notification
         try {
           await fetch('/api/notifications/password-changed', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
           });
         } catch (notifErr) {
-          console.error('Failed to send password changed notification:', notifErr);
+          console.error('Failed to send notification:', notifErr);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -269,7 +276,54 @@ export default function DashboardProfile() {
         setSaving(false);
       }
     }
+  } else {
+    // Non-premium users: Old password verification
+    if (!oldPassword) {
+      setMessage('Please enter your old password');
+      return;
+    }
+    setSaving(true);
+    setMessage('');
+    try {
+      const response = await fetch('/api/auth/set-password-with-face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          userId: profile?.id,
+          newPassword: password,
+          oldPassword: oldPassword,
+          isPremium: false
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update password');
+      }
+      
+      setMessage('✅ Password updated successfully!');
+      setPassword('');
+      setOldPassword('');
+      
+      // Send Firebase push notification
+      try {
+        await fetch('/api/notifications/password-changed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (notifErr) {
+        console.error('Failed to send notification:', notifErr);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setMessage(`❌ ${msg}`);
+    } finally {
+      setSaving(false);
+    }
   }
+}
 
   async function enable2FA() {
     setSetting2FA(true);
@@ -810,54 +864,154 @@ export default function DashboardProfile() {
               <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>Email</div>
               <input value={email} disabled style={{ width: '100%', opacity: 0.6, padding: '8px 10px', fontSize: '14px' }} />
             </label>
-
             <label style={{ display: 'block', marginBottom: 10 }}>
               <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>
-                {isPremium ? '🔐 Set/Change Password (verified with face recognition)' : 'New password (optional)'}
+                Old password (required to change)
               </div>
-              <input type="password" value={password} placeholder="Enter new password" onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }} />
+              <input
+                type="password"
+                value={oldPassword}
+                placeholder="Enter your old password"
+                onChange={(e) => setOldPassword(e.target.value)}
+                style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }}
+                required
+              />
             </label>
+ <label style={{ display: 'block', marginBottom: 10 }}>
+    <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>
+      {isPremium ? '🔐 New Password (verified with face + email code)' : 'New password (optional)'}
+    </div>
+    <input 
+      type="password" 
+      value={password} 
+      placeholder="Enter new password (min 8 characters)" 
+      onChange={(e) => setPassword(e.target.value)} 
+      style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }} 
+    />
+  </label>
 
-            {password && !isPremium && (
-              <label style={{ display: 'block', marginBottom: 10 }}>
-                <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>
-                  Current password (required)
-                </div>
-                <input 
-                  type="password" 
-                  value={currentPassword} 
-                  placeholder="Enter your current password" 
-                  onChange={(e) => setCurrentPassword(e.target.value)} 
-                  style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }} 
-                />
-              </label>
-            )}
+  {password && !isPremium && (
+    <label style={{ display: 'block', marginBottom: 10 }}>
+      <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>
+        Current password (required)
+      </div>
+      <input 
+        type="password" 
+        value={currentPassword} 
+        placeholder="Enter your current password" 
+        onChange={(e) => setCurrentPassword(e.target.value)} 
+        style={{ width: '100%', padding: '8px 10px', fontSize: '14px' }} 
+      />
+    </label>
+  )}
 
-            {password && isPremium && (
-              <div style={{ 
-                padding: '10px 12px', 
-                marginBottom: 10, 
-                background: 'rgba(234, 179, 8, 0.1)', 
-                border: '1px solid rgba(234, 179, 8, 0.3)', 
-                borderRadius: 6, 
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8
-              }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
-                <span style={{ color: '#eab308' }}>You&apos;ll verify your identity with face recognition instead of entering your current password</span>
-              </div>
-            )}
+  {password && isPremium && !showPasswordVerification && (
+    <div style={{ 
+      padding: '10px 12px', 
+      marginBottom: 10, 
+      background: 'rgba(234, 179, 8, 0.1)', 
+      border: '1px solid rgba(234, 179, 8, 0.3)', 
+      borderRadius: 6, 
+      fontSize: '12px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <span style={{ color: '#eab308' }}>
+        Step 1: You'll verify your identity with face recognition
+      </span>
+    </div>
+  )}
 
-            <button className="github-btn github-btn-primary" type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 
-               password && isPremium ? 'Set Password with Face Verification' :
-               password && !isPremium ? 'Update Password' :
-               'Save changes'}
-            </button>
+  {password && isPremium && showPasswordVerification && (
+    <div style={{ 
+      padding: '16px', 
+      marginBottom: 10, 
+      background: 'rgba(234, 179, 8, 0.1)', 
+      border: '2px solid rgba(234, 179, 8, 0.3)', 
+      borderRadius: 8
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#eab308' }}>
+            Step 2: Email Verification
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--muted)' }}>
+            Enter the 6-digit code sent to {email}
+          </div>
+        </div>
+      </div>
+
+      <label style={{ display: 'block', marginBottom: 8 }}>
+        <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: 4 }}>
+          Verification Code
+        </div>
+        <input 
+          type="text" 
+          value={verificationCode} 
+          onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))} 
+          placeholder="123456"
+          maxLength={6}
+          style={{ 
+            width: '100%', 
+            fontSize: '20px', 
+            letterSpacing: '8px', 
+            textAlign: 'center',
+            padding: '12px',
+            fontWeight: 'bold'
+          }} 
+        />
+      </label>
+
+      {verificationCountdown > 0 && (
+        <div style={{ fontSize: '11px', color: 'var(--muted)', textAlign: 'center', marginTop: 8 }}>
+          Code expires in {Math.floor(verificationCountdown / 60)}:{(verificationCountdown % 60).toString().padStart(2, '0')}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => {
+          setShowPasswordVerification(false);
+          setVerificationCode('');
+          setVerificationSent(false);
+          setPassword('');
+        }}
+        style={{
+          width: '100%',
+          marginTop: 8,
+          padding: '6px',
+          fontSize: '12px',
+          background: 'transparent',
+          border: '1px solid var(--border)',
+          borderRadius: 6,
+          cursor: 'pointer'
+        }}
+      >
+        Cancel & Start Over
+      </button>
+    </div>
+  )}
+
+  <button 
+    className="github-btn github-btn-primary" 
+    type="button"
+    onClick={handlePasswordChange}
+    disabled={saving || (isPremium && showPasswordVerification && (!verificationCode || verificationCode.length !== 6))}
+  >
+    {saving ? 'Processing…' : 
+     password && isPremium && !showPasswordVerification ? 'Verify with Face & Send Code' :
+     password && isPremium && showPasswordVerification ? 'Confirm Password Change' :
+     password && !isPremium ? 'Update Password' :
+     'Save changes'}
+  </button>
           </form>
 
           <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid var(--border)' }} />

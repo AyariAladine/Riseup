@@ -11,6 +11,7 @@ const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res
 
 export type ProfileData = {
   user: {
+    id: string;
     name: string;
     email: string;
     avatar?: string;
