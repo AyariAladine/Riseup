@@ -93,14 +93,22 @@ export async function GET(request) {
 
     // 2. Tasks created/updated
     const tasks = await Task.find({
-      $or: [
-        { user: userId },
-        { userId: userIdString }
-      ],
-      $or: [
-        { createdAt: { $gte: weekStart, $lte: weekEnd } },
-        { updatedAt: { $gte: weekStart, $lte: weekEnd } },
-        { completedAt: { $gte: weekStart, $lte: weekEnd } }
+      $and: [
+        {
+          $or: [
+            { user: userId },
+            { user: userIdString },
+            { userId: userId },
+            { userId: userIdString }
+          ]
+        },
+        {
+          $or: [
+            { createdAt: { $gte: weekStart, $lte: weekEnd } },
+            { updatedAt: { $gte: weekStart, $lte: weekEnd } },
+            { completedAt: { $gte: weekStart, $lte: weekEnd } }
+          ]
+        }
       ]
     }).lean();
 
